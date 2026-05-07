@@ -1,0 +1,4 @@
+flask
+stripe
+boto3
+fal-client
