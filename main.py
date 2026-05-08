@@ -5,8 +5,8 @@ app = Flask(__name__)
 
 # --- CONFIG ---
 LAB_PASSWORD = os.environ.get("LAB_PASSWORD", "HEATHUMB2026")
-s3 = boto3.client('s3', region_name='eu-west-2')
-BUCKET = os.environ.get("AWS_BUCKET_NAME")
+s3 = boto3.client('s3', region_name='eu-north-1')
+BUCKET = os.environ.get("heatthumb-vault-sruli")
 
 # --- HTML STYLES (Carbon Mint) ---
 HTML_TEMPLATE = """
