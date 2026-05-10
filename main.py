@@ -7,15 +7,16 @@ from flask import Flask, request, jsonify, render_template_string
 app = Flask(__name__)
 
 # --- AUTH & CONFIG ---
-# This ensures the fal_client library sees your API key from Railway
+# Ensures the fal_client library sees your API key from Railway
 os.environ["FAL_KEY"] = os.environ.get("FAL_KEY", "")
 
 # Password for your testers
 LAB_PASSWORD = os.environ.get("LAB_PASSWORD", "HEATHUMB2026")
 
-# AWS Setup (Stockholm Region)
+# AWS Setup (Stockholm Region: eu-north-1)
 s3 = boto3.client('s3', region_name='eu-north-1')
-BUCKET = os.environ.get("AWS_BUCKET_NAME", "heatthumb-vault-sruli")
+# Using the long-form bucket name that worked in your previous error log
+BUCKET = os.environ.get("AWS_BUCKET_NAME", "heatthumb-vault-sruli-259851212536-eu-north-1-an")
 
 # --- DESIGN (Carbon Mint) ---
 HTML_TEMPLATE = """
@@ -79,13 +80,19 @@ def process():
     filename = f"lab_{int(time.time())}.mp4"
     
     try:
-        # 1. Upload to S3
-        s3.upload_fileobj(video, BUCKET, filename)
-        # Regional URL for Stockholm
+        # 1. Upload to S3 with Public-Read permission so AI can see it
+        # This requires the "ACLs Restored" box you just ticked in AWS
+        s3.upload_fileobj(
+            video, 
+            BUCKET, 
+            filename, 
+            ExtraArgs={'ACL': 'public-read'}
+        )
+        
+        # Specific URL format for Stockholm region
         video_url = f"https://{BUCKET}.s3.eu-north-1.amazonaws.com/{filename}"
         
         # 2. Extract 20 Frames (The Library)
-        # Using the fal.ai ffmpeg-api
         extract = fal_client.subscribe("fal-ai/ffmpeg-api/extract-frame", {
             "video_url": video_url, 
             "count": 20
@@ -93,10 +100,8 @@ def process():
         all_frames = [img['url'] for img in extract['images']]
         
         # 3. Create 4 AI Remixes (The +4)
-        # We take the first extracted frame and enhance it
         remixes = []
         for i in range(4):
-            # Using Flux Pro for high-end thumbnail remixing
             res = fal_client.subscribe("fal-ai/flux-pro", {
                 "image_url": all_frames[0],
                 "prompt": "Professional YouTube thumbnail, high contrast, glowing neon borders, sharp gaming icons, 4k resolution, cinematic lighting",
@@ -104,7 +109,7 @@ def process():
             })
             remixes.append(res['images'][0]['url'])
         
-        # 4. Cleanup: Delete video immediately to keep AWS costs at £0
+        # 4. Cleanup: Delete video immediately to keep storage free
         s3.delete_object(Bucket=BUCKET, Key=filename)
         
         return jsonify({
