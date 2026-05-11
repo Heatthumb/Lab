@@ -1,4 +1,4 @@
 flask
-stripe
 boto3
 fal-client
+psycopg2-binary
