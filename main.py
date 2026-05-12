@@ -16,167 +16,154 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <style>
-        :root { --mint: #00FFC2; --carbon: #0B0D10; --card: #151A21; --border: #273140; --blue: #40E0FF; --red: #FF4B4B; }
+        :root { --mint: #00FFC2; --carbon: #0B0D10; --card: #151A21; --border: #273140; --blue: #40E0FF; --red: #FF3E3E; }
         body { background: var(--carbon); color: #E9EEF5; font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        .sidebar { width: 320px; background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-        .workspace { flex: 1; padding: 30px; overflow-y: auto; background: #080a0d; }
-        .image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 30px; }
-
-        /* Logo Manager */
-        .logo-section { padding: 15px; border-bottom: 1px solid var(--border); background: #11151b; }
-        .logo-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-        .logo-wrap { position: relative; width: 50px; height: 50px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-        .logo-wrap img { width: 100%; height: 100%; object-fit: contain; background: #000; }
-        .logo-del { position: absolute; top: 0; right: 0; background: var(--red); color: white; border: none; font-size: 8px; cursor: pointer; padding: 2px 4px; }
-
-        /* Card Styling */
-        .img-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; position: relative; }
-        .frame-container { position: relative; width: 100%; border-radius: 10px; overflow: hidden; border: 4px solid transparent; transition: 0.2s; }
-        .frame-container img { width: 100%; display: block; }
+        .sidebar { width: 300px; background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .workspace { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; background: #080a0d; }
         
-        /* Layer Overlays */
-        .manual-text { 
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 90%; text-align: center; color: white; font-weight: 900; 
-            text-transform: uppercase; line-height: 1; pointer-events: none;
-            text-shadow: 3px 3px 0 #000, -2px -2px 0 #000; font-size: 28px; display: none;
+        /* The Design Canvas */
+        .canvas-wrap { 
+            position: relative; width: 854px; height: 480px; 
+            background: #000; border-radius: 12px; overflow: hidden; 
+            border: 6px solid transparent; box-shadow: 0 30px 60px rgba(0,0,0,0.6); 
+            margin-bottom: 25px; 
         }
-        .applied-logo { position: absolute; bottom: 10px; right: 10px; width: 60px; pointer-events: none; opacity: 0.9; display: none; }
-
-        .tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 15px 0; }
-        .tool-btn { background: #242b35; border: 1px solid var(--border); color: #fff; padding: 10px 2px; border-radius: 8px; font-size: 10px; cursor: pointer; font-weight: bold; }
-        .tool-btn.active { background: var(--blue); color: #000; }
-
-        .btn-mint { background: var(--mint); color: #000; border: none; padding: 15px; border-radius: 10px; font-weight: 900; cursor: pointer; width: 100%; }
-        .loader { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
         
-        .side-plus { position: absolute; top: 8px; right: 8px; background: var(--mint); color: #000; border: none; border-radius: 50%; width: 30px; height: 30px; font-weight: 900; cursor: pointer; }
+        /* Image Layer with Virtual Zoom */
+        #bgImg { 
+            width: 100%; height: 100%; object-fit: cover; 
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-origin: center; 
+        }
+        
+        /* Draggable Overlay System */
+        .draggable { position: absolute; cursor: move; user-select: none; z-index: 10; }
+        .text-layer { font-weight: 900; font-size: 60px; text-transform: uppercase; white-space: nowrap; line-height: 1; pointer-events: auto; }
+        .arrow-layer { width: 140px; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.5)); pointer-events: auto; }
+
+        .pro-panel { width: 854px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; background: var(--card); padding: 20px; border-radius: 20px; border: 1px solid var(--border); }
+        .control-box { display: flex; flex-direction: column; gap: 8px; }
+        label { font-size: 9px; font-weight: bold; color: #8A94A6; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .btn { background: #242b35; border: 1px solid var(--border); color: #fff; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 10px; font-weight: 800; }
+        .btn:hover { border-color: var(--mint); background: #2d3642; }
+        .btn-active { background: var(--blue); color: #000; }
+
+        input[type="text"] { background: #000; border: 1px solid var(--border); color: #fff; padding: 10px; border-radius: 8px; font-size: 12px; }
+        .lib-thumb { width: 100%; border-radius: 8px; margin-bottom: 10px; cursor: pointer; opacity: 0.6; transition: 0.2s; }
+        .lib-thumb:hover { opacity: 1; }
     </style>
 </head>
 <body>
-    <div class="loader" id="loader"><h2>CURATING BEST 6</h2></div>
-
-    <div class="sidebar" id="sidebar" style="display:none;">
-        <div class="logo-section">
-            <span style="font-size: 10px; font-weight: bold; color: var(--blue);">BRANDING LOGOS</span>
-            <input type="file" id="logoInp" multiple onchange="uploadLogos(this)" style="display:none;">
-            <button onclick="document.getElementById('logoInp').click()" style="width:100%; margin-top:5px; font-size:9px; cursor:pointer;">+ ADD LOGOS</button>
-            <div id="logoList" class="logo-list"></div>
-        </div>
-        <div id="libraryGrid" style="padding: 15px; overflow-y: auto; flex: 1;"></div>
+    <div class="sidebar">
+        <div style="padding:20px; font-weight:900; color:var(--blue); border-bottom:1px solid var(--border); font-size: 12px;">RAW VIDEO FRAMES</div>
+        <div id="library" style="padding:15px; overflow-y:auto;"></div>
     </div>
 
     <div class="workspace">
-        <div id="uploadZone" style="background: var(--card); border: 2px dashed var(--border); padding: 40px; border-radius: 20px; text-align: center; margin-bottom: 30px;">
-            <input type="file" id="videoFile" style="margin-bottom: 20px;">
-            <button onclick="processVideo()" class="btn-mint">SCAN & EXTRACT SHARP FRAMES</button>
+        <div style="margin-bottom:20px; display:flex; gap:10px;">
+            <input type="file" id="videoFile">
+            <button onclick="processVideo()" class="btn" style="background:var(--mint); color:#000; padding: 0 20px;">CURATE VIDEO</button>
         </div>
-        <div id="mainGrid" class="image-grid"></div>
+
+        <div class="canvas-wrap" id="canvas">
+            <img id="bgImg" src="">
+            <div id="textObj" class="draggable text-layer" style="top:50px; left:50px; color:#ffffff;">EMOTION!</div>
+            <img id="arrowObj" class="draggable arrow-layer" src="https://img.icons8.com/fluent/200/long-arrow-right.png" style="top:250px; left:600px; display:none; filter: hue-rotate(140deg) saturate(5);">
+        </div>
+
+        <div class="pro-panel">
+            <div class="control-box">
+                <label>Face & Emotion Zoom</label>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
+                    <button class="btn" onclick="setZoom(1)">Normal View</button>
+                    <button class="btn" onclick="setZoom(1.8)">Face Zoom (1.8x)</button>
+                    <button class="btn" onclick="setZoom(2.5)">Extreme (2.5x)</button>
+                    <button class="btn" onclick="resetPos()">Reset Center</button>
+                </div>
+                <input type="text" id="textInp" placeholder="Enter headline..." oninput="updateText()">
+            </div>
+
+            <div class="control-box">
+                <label>Viral Layers (Stickers)</label>
+                <button class="btn" onclick="toggleArrow()">🎯 ADD VIRAL ARROW</button>
+                <button class="btn" onclick="applyOutline()">👤 SUBJECT GLOW (WHITE)</button>
+                <div style="display:flex; gap:5px;">
+                    <input type="color" id="textColor" value="#ffffff" onchange="updateStyles()">
+                    <input type="color" id="borderColor" value="#00FFC2" onchange="updateStyles()">
+                    <button class="btn" onclick="applyPortrait()">✨ BLUR BG</button>
+                </div>
+            </div>
+
+            <div class="control-box">
+                <label>Export Final</label>
+                <button class="btn" style="background:var(--blue); color:#000; font-size:12px;" onclick="alert('Exporting 4K Thumbnail Package...')">DOWNLOAD FOR YOUTUBE</button>
+                <button class="btn" style="color:var(--red)" onclick="location.reload()">START NEW VIDEO</button>
+                <p style="font-size:8px; color:#555; margin-top:5px;">*No AI used for Zoom, Arrows, or Text. Image quality remains raw.</p>
+            </div>
+        </div>
     </div>
 
     <script>
-        let currentLogos = [];
+        let active = null;
+        let currentZoom = 1;
 
-        function uploadLogos(input) {
-            Array.from(input.files).forEach(file => {
-                const reader = new FileReader();
-                reader.onload = e => {
-                    const id = Date.now() + Math.random();
-                    currentLogos.push({ id, src: e.target.result });
-                    renderLogos();
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-
-        function renderLogos() {
-            document.getElementById('logoList').innerHTML = currentLogos.map(l => `
-                <div class="logo-wrap">
-                    <img src="${l.src}" onclick="applyLogoToAll('${l.src}')" style="cursor:pointer" title="Click to apply to all workspace frames">
-                    <button class="logo-del" onclick="deleteLogo('${l.id}')">X</button>
-                </div>
-            `).join('');
-        }
-
-        function deleteLogo(id) {
-            currentLogos = currentLogos.filter(l => l.id != id);
-            renderLogos();
-        }
-
-        function applyLogoToAll(src) {
-            document.querySelectorAll('.applied-logo').forEach(img => {
-                img.src = src;
-                img.style.display = 'block';
-            });
-        }
+        document.addEventListener('mousedown', e => {
+            if(e.target.classList.contains('draggable')) {
+                active = e.target;
+                active.offsetX = e.clientX - active.offsetLeft;
+                active.offsetY = e.clientY - active.offsetTop;
+            }
+        });
+        document.addEventListener('mousemove', e => {
+            if(active) {
+                active.style.left = (e.clientX - active.offsetX) + 'px';
+                active.style.top = (e.clientY - active.offsetY) + 'px';
+            }
+        });
+        document.addEventListener('mouseup', () => active = null);
 
         async function processVideo() {
-            const v = document.getElementById('videoFile').files[0];
-            if(!v) return;
-            document.getElementById('loader').style.display = 'flex';
-            const fd = new FormData();
-            fd.append('video', v);
-
+            const fd = new FormData(); fd.append('video', document.getElementById('videoFile').files[0]);
             const res = await fetch('/process', { method: 'POST', body: fd });
             const data = await res.json();
-            
             if(data.status === 'success') {
-                document.getElementById('sidebar').style.display = 'flex';
-                document.getElementById('libraryGrid').innerHTML = data.library.map(u => `
-                    <div style="position:relative; margin-bottom:10px;">
-                        <img src="${u}" style="width:100%; border-radius:6px;">
-                        <button class="side-plus" onclick="promote('${u}')">+</button>
-                    </div>
-                `).join('');
-                document.getElementById('mainGrid').innerHTML = data.pack.map(u => createCard(u)).join('');
+                document.getElementById('library').innerHTML = data.library.map(u => `<img src="${u}" class="lib-thumb" onclick="setBg('${u}')">`).join('');
+                setBg(data.pack[0]);
             }
-            document.getElementById('loader').style.display = 'none';
         }
 
-        function createCard(url) {
-            return `
-                <div class="img-card">
-                    <div class="frame-container">
-                        <img src="${url}">
-                        <div class="manual-text">YOUR HEADLINE</div>
-                        <img class="applied-logo" src="">
-                    </div>
-                    
-                    <div class="tools">
-                        <button class="tool-btn" onclick="toggleFilter(this, 'bright')">BRIGHT</button>
-                        <button class="tool-btn" onclick="toggleFilter(this, 'pop')">POP</button>
-                        <button class="tool-btn" onclick="toggleFilter(this, 'border')">BORDER</button>
-                        <button class="tool-btn" style="color:var(--red)" onclick="this.closest('.img-card').remove()">DELETE</button>
-                    </div>
-
-                    <input type="text" placeholder="Headline text..." oninput="updateText(this)" style="width:100%; background:#000; border:1px solid var(--border); color:#fff; padding:10px; border-radius:8px;">
-                    
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 15px;">
-                        <button class="tool-btn" style="background:var(--blue); color:#000" onclick="alert('Downloading high-res YouTube version...')">DL YOUTUBE</button>
-                        <button class="tool-btn" style="background:#fff; color:#000" onclick="alert('Downloading high-res TikTok version...')">DL TIKTOK</button>
-                    </div>
-                </div>`;
+        function setBg(u) { document.getElementById('bgImg').src = u; setZoom(1); }
+        function setZoom(val) { currentZoom = val; document.getElementById('bgImg').style.transform = `scale(${val})`; }
+        function resetPos() { document.getElementById('bgImg').style.objectPosition = 'center'; }
+        
+        function updateText() { document.getElementById('textObj').innerText = document.getElementById('textInp').value; }
+        
+        function toggleArrow() {
+            const arrow = document.getElementById('arrowObj');
+            arrow.style.display = arrow.style.display === 'none' ? 'block' : 'none';
         }
 
-        function updateText(input) {
-            const overlay = input.closest('.img-card').querySelector('.manual-text');
-            overlay.innerText = input.value;
-            overlay.style.display = input.value ? 'block' : 'none';
+        function applyOutline() {
+            const img = document.getElementById('bgImg');
+            img.style.filter = img.style.filter.includes('drop-shadow') ? 'none' : 'drop-shadow(0 0 15px white) brightness(1.05)';
         }
 
-        function toggleFilter(btn, type) {
-            const card = btn.closest('.img-card');
-            const img = card.querySelector('img');
-            const container = card.querySelector('.frame-container');
-            btn.classList.toggle('active');
-            
-            if(type === 'bright') img.style.filter = btn.classList.contains('active') ? 'brightness(1.3)' : 'none';
-            if(type === 'pop') img.style.filter = btn.classList.contains('active') ? 'contrast(1.2) saturate(1.3)' : 'none';
-            if(type === 'border') container.style.borderColor = btn.classList.contains('active') ? 'var(--mint)' : 'transparent';
+        function updateStyles() {
+            const t = document.getElementById('textObj');
+            const c = document.getElementById('canvas');
+            t.style.color = document.getElementById('textColor').value;
+            c.style.borderColor = document.getElementById('borderColor').value;
+            t.style.textShadow = '5px 5px 0px #000';
         }
 
-        function promote(u) { document.getElementById('mainGrid').insertAdjacentHTML('afterbegin', createCard(u)); }
+        async function applyPortrait() {
+            const img = document.getElementById('bgImg');
+            const res = await fetch('/portrait', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ url: img.src }) });
+            const d = await res.json();
+            if(d.url) img.src = d.url;
+        }
     </script>
 </body>
 </html>
@@ -189,18 +176,21 @@ def process():
     try:
         s3.upload_fileobj(video, BUCKET, fn, ExtraArgs={'ACL': 'public-read'})
         v_url = f"https://{BUCKET}.s3.eu-north-1.amazonaws.com/{fn}"
-        
-        # 1. AI Extractions (Scanning whole video)
-        ex = fal_client.subscribe("fal-ai/workflow-utilities/extract-nth-frame", {"video_url": v_url, "max_frames": 25})
+        ex = fal_client.subscribe("fal-ai/workflow-utilities/extract-nth-frame", {"video_url": v_url, "max_frames": 15})
         raw_frames = list(dict.fromkeys([i['url'] for i in ex.get('images', [])]))
-
-        # 2. Pick 6 REAL Frames from center segment
-        mid = len(raw_frames) // 3
-        best_6 = raw_frames[mid:mid+6]
-
         s3.delete_object(Bucket=BUCKET, Key=fn)
-        return jsonify({"status": "success", "pack": best_6, "library": raw_frames})
-    except Exception as e: return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "success", "pack": raw_frames[2:8], "library": raw_frames})
+    except Exception: return jsonify({"status": "error"}), 500
+
+@app.route('/portrait', methods=['POST'])
+def portrait():
+    d = request.json
+    r = fal_client.subscribe("fal-ai/flux-pro", {
+        "image_url": d['url'],
+        "prompt": "Keep the main central subject/person perfectly sharp. Apply a professional cinematic heavy background blur with bokeh. High-end video still.",
+        "strength": 0.28
+    })
+    return jsonify({"url": r['images'][0]['url']})
 
 @app.route('/')
 def home(): return render_template_string(HTML_TEMPLATE, password=LAB_PASSWORD)
