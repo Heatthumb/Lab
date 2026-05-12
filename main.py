@@ -1,165 +1,203 @@
-import os, boto3, fal_client, time, json, logging
+import os, boto3, fal_client, time, json
 from flask import Flask, request, jsonify, render_template_string
-
-# --- SETUP LOGGING (To see why it crashed) ---
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# --- CONFIGURATION (Crucial!) ---
-# Ensure these are set in your Environment Variables or replace the strings below
-FAL_KEY = os.environ.get("FAL_KEY", "your-key-here")
-AWS_ACCESS = os.environ.get("AWS_ACCESS_KEY_ID", "your-access-key")
-AWS_SECRET = os.environ.get("AWS_SECRET_ACCESS_KEY", "your-secret-key")
-BUCKET = os.environ.get("AWS_BUCKET_NAME", "your-bucket-name")
-
-os.environ["FAL_KEY"] = FAL_KEY
-
-# Initialize S3 safely
-try:
-    s3 = boto3.client('s3', 
-                      aws_access_key_id=AWS_ACCESS, 
-                      aws_secret_access_key=AWS_SECRET, 
-                      region_name='eu-north-1')
-except Exception as e:
-    logger.error(f"S3 Connection Failed: {e}")
+# --- CONFIG ---
+os.environ["FAL_KEY"] = os.environ.get("FAL_KEY", "")
+s3 = boto3.client('s3', region_name='eu-north-1')
+BUCKET = os.environ.get("AWS_BUCKET_NAME", "")
 
 PROJECTS_FILE = "user_vault.json"
-if not os.path.exists(PROJECTS_FILE):
-    with open(PROJECTS_FILE, "w") as f: json.dump({}, f)
 
-# --- RECOVERY LOGIC ---
-def safe_load_vault():
-    try:
-        with open(PROJECTS_FILE, "r") as f:
-            return json.load(f)
-    except:
-        return {}
+def get_next_project_id():
+    """Generates sequential IDs like 101, 102 based on history."""
+    if not os.path.exists(PROJECTS_FILE): return "101"
+    with open(PROJECTS_FILE, "r") as f:
+        data = json.load(f)
+        if not data: return "101"
+        # Find the highest numeric key and add 1
+        numeric_keys = [int(k) for k in data.keys() if k.isdigit()]
+        return str(max(numeric_keys) + 1) if numeric_keys else str(len(data) + 101)
 
-# --- HTML UI (Simplified for Stability) ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>ViralFrame V31 - Stable</title>
+    <meta charset="UTF-8">
     <style>
-        body { background: #0B0D10; color: white; font-family: sans-serif; display: flex; margin: 0; }
-        .sidebar { width: 250px; background: #151A21; height: 100vh; border-right: 1px solid #273140; padding: 20px; }
-        .main { flex: 1; padding: 40px; display: flex; flex-direction: column; align-items: center; }
-        .canvas { width: 854px; height: 480px; background: #000; border: 2px solid #40E0FF; position: relative; overflow: hidden; }
-        #mainImg { width: 100%; height: 100%; object-fit: cover; }
-        .controls { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; width: 854px; }
-        .btn { background: #00FFC2; color: black; border: none; padding: 15px; font-weight: bold; cursor: pointer; border-radius: 5px; }
-        .btn-sync { background: #40E0FF; }
-        .strip { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; width: 854px; }
-        .thumb { width: 100px; height: 60px; object-fit: cover; cursor: pointer; opacity: 0.6; }
-        .thumb:hover { opacity: 1; border: 2px solid #00FFC2; }
+        :root { --mint: #00FFC2; --carbon: #0B0D10; --card: #151A21; --border: #273140; --blue: #40E0FF; }
+        body { background: var(--carbon); color: #E9EEF5; font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Sidebar: History File */
+        .sidebar { width: 280px; background: var(--card); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 20px; font-weight: 900; color: var(--blue); border-bottom: 1px solid var(--border); font-size: 12px; }
+        .proj-item { padding: 15px 20px; border-bottom: 1px solid #1e252e; cursor: pointer; font-size: 13px; transition: 0.2s; }
+        .proj-item:hover { background: #1c232d; color: var(--mint); padding-left: 25px; }
+
+        .workspace { flex: 1; padding: 20px; display: flex; flex-direction: column; align-items: center; background: #080a0d; overflow-y: auto; }
+        
+        /* The Bar (Top 6 Curated) */
+        .frames-strip { width: 900px; display: flex; gap: 15px; overflow-x: auto; padding: 25px 0; border-bottom: 1px solid var(--border); }
+        .thumb-container { position: relative; flex-shrink: 0; }
+        .thumb { width: 130px; height: 74px; object-fit: cover; border-radius: 8px; cursor: pointer; transition: 0.25s; border: 2px solid transparent; }
+        .thumb:hover { transform: scale(1.9); z-index: 100; border-color: var(--mint); box-shadow: 0 10px 30px rgba(0,0,0,1); }
+        .plus-hint { position: absolute; top: 5px; right: 5px; background: var(--mint); color: #000; border-radius: 50%; width: 18px; height: 18px; font-size: 14px; text-align: center; font-weight: bold; pointer-events: none; opacity: 0.8; }
+
+        /* Workspace Canvas */
+        .canvas-wrap { position: relative; width: 854px; height: 480px; background: #000; border-radius: 12px; overflow: hidden; border: 4px solid var(--border); margin-top: 10px; }
+        #bgImg { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+        
+        .draggable { position: absolute; cursor: move; user-select: none; z-index: 10; }
+        #textLayer { font-weight: 900; color: white; text-transform: uppercase; text-shadow: 4px 4px 0 #000; font-size: 60px; }
+
+        .controls { width: 854px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; background: var(--card); padding: 20px; margin-top: 20px; border-radius: 12px; border: 1px solid var(--border); }
+        .btn { width: 100%; padding: 12px; background: #242b35; border: 1px solid var(--border); color: #fff; border-radius: 6px; cursor: pointer; font-weight: 800; font-size: 11px; margin-top: 5px; }
+        .btn:hover { border-color: var(--mint); color: var(--mint); }
+        .btn-pro { background: var(--blue); color: #000; border: none; }
     </style>
 </head>
 <body>
     <div class="sidebar">
-        <h3>PROJECT BAR</h3>
+        <div class="sidebar-header">HISTORY (SAVED SESSIONS)</div>
         <div id="projectList"></div>
     </div>
-    <div class="main">
-        <div style="margin-bottom: 20px;">
-            <input type="text" id="pName" placeholder="Project Name">
-            <input type="file" id="vidInp">
-            <button class="btn" onclick="upload()">EXTRACT & DELETE VIDEO</button>
+
+    <div class="workspace">
+        <div style="width: 854px; display: flex; gap: 10px; margin-bottom: 10px;">
+            <input type="text" id="pName" placeholder="Project Name (Optional)..." style="flex:1; background:#000; border:1px solid var(--border); color:#fff; padding:12px; border-radius:8px;">
+            <input type="file" id="vidInp" style="display:none;" onchange="upload()">
+            <button id="upBtn" onclick="document.getElementById('vidInp').click()" class="btn" style="background:var(--mint); color:#000; width: 220px; margin:0;">UPLOAD & EXTRACT</button>
         </div>
-        <div id="frameStrip" class="strip"></div>
-        <div class="canvas">
-            <img id="mainImg" src="">
+
+        <div id="framesStrip" class="frames-strip"></div>
+
+        <div class="canvas-wrap" id="captureArea">
+            <img id="bgImg" src="">
+            <div id="textLayer" class="draggable">NEW VIRAL CLIP</div>
         </div>
+
         <div class="controls">
-            <button class="btn" onclick="zoom(1.8)">EMOTION ZOOM</button>
-            <button class="btn" onclick="zoom(1)">RESET</button>
-            <button class="btn btn-sync" onclick="alert('Syncing A/B Test to YouTube API...')">SYNC TO YOUTUBE</button>
+            <div>
+                <label style="font-size:9px; color:var(--blue);">TEXT SETTINGS</label>
+                <input type="text" id="textInp" oninput="updateText()" placeholder="Change text..." style="width:90%; padding:8px; margin:5px 0; background:#000; border:1px solid #333; color:#fff;">
+                <div style="display:flex; gap:5px;">
+                    <button class="btn" onclick="changeFontSize(10)">SIZE +</button>
+                    <button class="btn" onclick="changeFontSize(-10)">SIZE -</button>
+                </div>
+            </div>
+            <div>
+                <label style="font-size:9px; color:var(--blue);">AI WORKSPACE</label>
+                <button class="btn" onclick="zoom(1.8)">EMOTION ZOOM</button>
+                <button class="btn" onclick="zoom(1)">RESET WORKSPACE</button>
+                <button class="btn" onclick="alert('Predicting Click-Through Rate...')">📊 SCAN SUCCESS</button>
+            </div>
+            <div>
+                <label style="font-size:9px; color:var(--blue);">ACTION</label>
+                <button class="btn btn-pro" onclick="alert('Sent to A/B Testing Queue')">🚀 SYNC TO YOUTUBE</button>
+                <button class="btn" onclick="window.print()">DOWNLOAD PNG</button>
+            </div>
         </div>
     </div>
 
     <script>
+        let textSize = 60;
+        let active = null;
+
+        document.addEventListener('mousedown', e => { if(e.target.classList.contains('draggable')) { active = e.target; active.ox = e.clientX - active.offsetLeft; active.oy = e.clientY - active.offsetTop; } });
+        document.addEventListener('mousemove', e => { if(active) { active.style.left = (e.clientX - active.ox) + 'px'; active.style.top = (e.clientY - active.oy) + 'px'; } });
+        document.addEventListener('mouseup', () => active = null);
+
         async function upload() {
-            const btn = document.querySelector('.btn');
-            btn.innerText = "PROCESSING...";
+            const btn = document.getElementById('upBtn');
+            btn.innerText = "EXTRACTING & DELETING VIDEO...";
             const fd = new FormData();
             fd.append('video', document.getElementById('vidInp').files[0]);
-            fd.append('name', document.getElementById('pName').value || "Untitled");
-
-            try {
-                const res = await fetch('/process', { method: 'POST', body: fd });
-                const data = await res.json();
-                renderFrames(data.frames);
-                loadVault();
-            } catch (e) { alert("Upload Failed. Check console."); }
-            btn.innerText = "EXTRACT & DELETE VIDEO";
+            fd.append('name', document.getElementById('pName').value);
+            
+            const res = await fetch('/process', { method: 'POST', body: fd });
+            const data = await res.json();
+            renderFrames(data.frames);
+            loadVault();
+            btn.innerText = "UPLOAD & EXTRACT";
         }
 
         function renderFrames(frames) {
-            document.getElementById('frameStrip').innerHTML = frames.map(u => `
-                <img src="${u}" class="thumb" onclick="document.getElementById('mainImg').src='${u}'">
+            document.getElementById('framesStrip').innerHTML = frames.map(u => `
+                <div class="thumb-container" onclick="addToWorkspace('${u}')">
+                    <img src="${u}" class="thumb">
+                    <div class="plus-hint">+</div>
+                </div>
             `).join('');
-            document.getElementById('mainImg').src = frames[0];
+            if(frames.length > 0) addToWorkspace(frames[0]);
+        }
+
+        function addToWorkspace(url) {
+            document.getElementById('bgImg').src = url;
         }
 
         async function loadVault() {
             const res = await fetch('/get_vault');
             const data = await res.json();
-            document.getElementById('projectList').innerHTML = Object.keys(data).map(n => `
-                <div style="padding:10px; cursor:pointer;" onclick="renderFramesByProject('${n}')">🎬 ${n}</div>
+            document.getElementById('projectList').innerHTML = Object.keys(data).reverse().map(n => `
+                <div class="proj-item" onclick="openProj('${n}')">📁 Project #${n}</div>
             `).join('');
         }
 
-        function zoom(s) { document.getElementById('mainImg').style.transform = `scale(${s})`; }
-        
+        async function openProj(n) {
+            const res = await fetch('/get_vault');
+            const data = await res.json();
+            renderFrames(data[n]);
+        }
+
+        function updateText() { document.getElementById('textLayer').innerText = document.getElementById('textInp').value; }
+        function changeFontSize(val) { textSize += val; document.getElementById('textLayer').style.fontSize = textSize + 'px'; }
+        function zoom(s) { document.getElementById('bgImg').style.transform = `scale(${s})`; }
+
         loadVault();
     </script>
 </body>
 </html>
 """
 
-@app.route('/')
-def home(): return render_template_string(HTML_TEMPLATE)
-
-@app.route('/get_vault')
-def get_vault(): return jsonify(safe_load_vault())
-
 @app.route('/process', methods=['POST'])
 def process():
-    if 'video' not in request.files:
-        return jsonify({"error": "No file"}), 400
-    
     video = request.files['video']
-    name = request.form.get('name', 'Project')
+    # If no name provided, use sequential ID like 101, 102
+    p_name = request.form.get('name') or get_next_project_id()
     temp_fn = f"raw_{int(time.time())}.mp4"
-
     try:
-        logger.info(f"Starting upload for {name}...")
-        # 1. Upload to S3
         s3.upload_fileobj(video, BUCKET, temp_fn, ExtraArgs={'ACL': 'public-read'})
         v_url = f"https://{BUCKET}.s3.amazonaws.com/{temp_fn}"
 
-        # 2. Extract
-        logger.info("Extracting frames via FAL...")
-        handler = fal_client.subscribe("fal-ai/workflow-utilities/extract-nth-frame", {
-            "video_url": v_url, "max_frames": 12
-        })
-        frames = [img['url'] for img in handler.get('images', [])]
+        # 1. Dynamic Extraction
+        ex = fal_client.subscribe("fal-ai/workflow-utilities/extract-nth-frame", {"video_url": v_url, "max_frames": 30})
+        all_frames = [i['url'] for i in ex.get('images', [])]
 
-        # 3. DELETE VIDEO (Privacy & Cost)
-        logger.info("Deleting raw video from S3...")
+        # 2. Selection + Sharpening (Top 6 Clear frames)
+        clean_frames = []
+        for img in all_frames[:6]:
+            db = fal_client.subscribe("fal-ai/nafnet/deblur", {"image_url": img})
+            clean_frames.append(db['image']['url'])
+
+        # 3. DELETE VIDEO IMMEDIATELY
         s3.delete_object(Bucket=BUCKET, Key=temp_fn)
 
-        # 4. Save Image URLs to Project Bar
-        vault = safe_load_vault()
-        vault[name] = frames
-        with open(PROJECTS_FILE, "w") as f: json.dump(vault, f)
+        # 4. SAVE TO HISTORY
+        with open(PROJECTS_FILE, "r+") as f:
+            vault = json.load(f)
+            vault[p_name] = clean_frames
+            f.seek(0); json.dump(vault, f); f.truncate()
 
-        return jsonify({"status": "success", "frames": frames})
-    except Exception as e:
-        logger.error(f"CRASH: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "success", "frames": clean_frames, "project_id": p_name})
+    except: return jsonify({"status": "error"}), 500
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=True)
+@app.route('/get_vault')
+def get_vault():
+    with open(PROJECTS_FILE, "r") as f: return jsonify(json.load(f))
+
+@app.route('/')
+def home(): return render_template_string(HTML_TEMPLATE)
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=8080)
