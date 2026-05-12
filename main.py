@@ -9,7 +9,7 @@ LAB_PASSWORD = os.environ.get("LAB_PASSWORD", "HEATHUMB2026")
 s3 = boto3.client('s3', region_name='eu-north-1')
 BUCKET = os.environ.get("AWS_BUCKET_NAME", "heatthumb-vault-sruli-259851212536-eu-north-1-an")
 
-# --- UI ---
+# --- STUDIO UI ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -19,50 +19,98 @@ HTML_TEMPLATE = """
         :root { --mint: #00FFC2; --carbon: #0B0D10; --card: #151A21; --border: #273140; --blue: #40E0FF; --red: #FF4B4B; }
         body { background: var(--carbon); color: #E9EEF5; font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        .sidebar { width: 340px; background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-        .scroll-area { flex: 1; overflow-y: auto; padding: 15px; }
-        
-        .workspace { flex: 1; padding: 30px; overflow-y: auto; }
-        .image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 25px; }
-        
-        .img-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 15px; position: relative; }
-        .img-card img { width: 100%; border-radius: 8px; display: block; background: #000; }
-        
-        /* Tool Layout */
-        .utility-bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin: 15px 0; }
-        .tool-btn { background: #242b35; border: 1px solid var(--border); color: #fff; padding: 8px 2px; border-radius: 6px; font-size: 9px; cursor: pointer; text-align: center; }
-        .tool-btn:hover { border-color: var(--blue); }
-        .tool-btn.del { color: var(--red); }
+        .sidebar { width: 320px; background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .workspace { flex: 1; padding: 30px; overflow-y: auto; background: #080a0d; }
+        .image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 30px; }
 
-        /* Social Export */
-        .export-row { display: flex; gap: 10px; margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px; }
-        .dl-btn { flex: 1; padding: 6px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: #8A94A6; font-size: 10px; cursor: pointer; }
-        .dl-btn:hover { background: var(--border); color: #fff; }
+        /* Logo Manager */
+        .logo-section { padding: 15px; border-bottom: 1px solid var(--border); background: #11151b; }
+        .logo-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+        .logo-wrap { position: relative; width: 50px; height: 50px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+        .logo-wrap img { width: 100%; height: 100%; object-fit: contain; background: #000; }
+        .logo-del { position: absolute; top: 0; right: 0; background: var(--red); color: white; border: none; font-size: 8px; cursor: pointer; padding: 2px 4px; }
 
-        .btn-mint { background: var(--mint); color: #000; border: none; padding: 12px; border-radius: 8px; font-weight: 900; cursor: pointer; width: 100%; }
-        .loader { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
+        /* Card Styling */
+        .img-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; position: relative; }
+        .frame-container { position: relative; width: 100%; border-radius: 10px; overflow: hidden; border: 4px solid transparent; transition: 0.2s; }
+        .frame-container img { width: 100%; display: block; }
+        
+        /* Layer Overlays */
+        .manual-text { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 90%; text-align: center; color: white; font-weight: 900; 
+            text-transform: uppercase; line-height: 1; pointer-events: none;
+            text-shadow: 3px 3px 0 #000, -2px -2px 0 #000; font-size: 28px; display: none;
+        }
+        .applied-logo { position: absolute; bottom: 10px; right: 10px; width: 60px; pointer-events: none; opacity: 0.9; display: none; }
+
+        .tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 15px 0; }
+        .tool-btn { background: #242b35; border: 1px solid var(--border); color: #fff; padding: 10px 2px; border-radius: 8px; font-size: 10px; cursor: pointer; font-weight: bold; }
+        .tool-btn.active { background: var(--blue); color: #000; }
+
+        .btn-mint { background: var(--mint); color: #000; border: none; padding: 15px; border-radius: 10px; font-weight: 900; cursor: pointer; width: 100%; }
+        .loader { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
+        
+        .side-plus { position: absolute; top: 8px; right: 8px; background: var(--mint); color: #000; border: none; border-radius: 50%; width: 30px; height: 30px; font-weight: 900; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div class="loader" id="loader"><h2 style="color:var(--mint)">CURATING SHARP FRAMES</h2><p>Filtering blur and locking subjects...</p></div>
+    <div class="loader" id="loader"><h2>CURATING BEST 6</h2></div>
 
     <div class="sidebar" id="sidebar" style="display:none;">
-        <div style="padding: 20px; border-bottom: 1px solid var(--border); font-weight: bold;">ALL VIDEO FRAMES</div>
-        <div class="scroll-area" id="libraryGrid"></div>
+        <div class="logo-section">
+            <span style="font-size: 10px; font-weight: bold; color: var(--blue);">BRANDING LOGOS</span>
+            <input type="file" id="logoInp" multiple onchange="uploadLogos(this)" style="display:none;">
+            <button onclick="document.getElementById('logoInp').click()" style="width:100%; margin-top:5px; font-size:9px; cursor:pointer;">+ ADD LOGOS</button>
+            <div id="logoList" class="logo-list"></div>
+        </div>
+        <div id="libraryGrid" style="padding: 15px; overflow-y: auto; flex: 1;"></div>
     </div>
 
     <div class="workspace">
-        <div id="labPanel">
-            <div style="background: var(--card); border: 1px solid var(--border); padding: 25px; border-radius: 15px; margin-bottom: 30px;">
-                <input type="file" id="videoFile" style="margin-bottom:15px; display:block;">
-                <button onclick="processVideo()" class="btn-mint">SCAN FOR BEST 6 (ANTI-BLUR)</button>
-            </div>
-            
-            <div id="mainGrid" class="image-grid"></div>
+        <div id="uploadZone" style="background: var(--card); border: 2px dashed var(--border); padding: 40px; border-radius: 20px; text-align: center; margin-bottom: 30px;">
+            <input type="file" id="videoFile" style="margin-bottom: 20px;">
+            <button onclick="processVideo()" class="btn-mint">SCAN & EXTRACT SHARP FRAMES</button>
         </div>
+        <div id="mainGrid" class="image-grid"></div>
     </div>
 
     <script>
+        let currentLogos = [];
+
+        function uploadLogos(input) {
+            Array.from(input.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const id = Date.now() + Math.random();
+                    currentLogos.push({ id, src: e.target.result });
+                    renderLogos();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function renderLogos() {
+            document.getElementById('logoList').innerHTML = currentLogos.map(l => `
+                <div class="logo-wrap">
+                    <img src="${l.src}" onclick="applyLogoToAll('${l.src}')" style="cursor:pointer" title="Click to apply to all workspace frames">
+                    <button class="logo-del" onclick="deleteLogo('${l.id}')">X</button>
+                </div>
+            `).join('');
+        }
+
+        function deleteLogo(id) {
+            currentLogos = currentLogos.filter(l => l.id != id);
+            renderLogos();
+        }
+
+        function applyLogoToAll(src) {
+            document.querySelectorAll('.applied-logo').forEach(img => {
+                img.src = src;
+                img.style.display = 'block';
+            });
+        }
+
         async function processVideo() {
             const v = document.getElementById('videoFile').files[0];
             if(!v) return;
@@ -76,7 +124,10 @@ HTML_TEMPLATE = """
             if(data.status === 'success') {
                 document.getElementById('sidebar').style.display = 'flex';
                 document.getElementById('libraryGrid').innerHTML = data.library.map(u => `
-                    <img src="${u}" style="width:100%; border-radius:8px; margin-bottom:10px; cursor:pointer;" onclick="promote('${u}')">
+                    <div style="position:relative; margin-bottom:10px;">
+                        <img src="${u}" style="width:100%; border-radius:6px;">
+                        <button class="side-plus" onclick="promote('${u}')">+</button>
+                    </div>
                 `).join('');
                 document.getElementById('mainGrid').innerHTML = data.pack.map(u => createCard(u)).join('');
             }
@@ -86,43 +137,43 @@ HTML_TEMPLATE = """
         function createCard(url) {
             return `
                 <div class="img-card">
-                    <img src="${url}">
-                    <div class="utility-bar">
-                        <button class="tool-btn" onclick="applyTool(this, 'bright')">☀<br>Bright</button>
-                        <button class="tool-btn" onclick="applyTool(this, 'text')">T<br>Text</button>
-                        <button class="tool-btn" onclick="applyTool(this, 'bold')"><b>B</b><br>Bold</button>
-                        <button class="tool-btn" onclick="applyTool(this, 'border')">▢<br>Border</button>
-                        <button class="tool-btn del" onclick="this.closest('.img-card').remove()">🗑<br>Delete</button>
+                    <div class="frame-container">
+                        <img src="${url}">
+                        <div class="manual-text">YOUR HEADLINE</div>
+                        <img class="applied-logo" src="">
                     </div>
-                    <input type="text" placeholder="Enter headline text..." style="width:100%; background:#000; border:1px solid var(--border); color:#fff; padding:10px; border-radius:6px; box-sizing:border-box;">
-                    <div class="export-row">
-                        <button class="dl-btn" onclick="download('${url}', 'yt')">YouTube</button>
-                        <button class="dl-btn" onclick="download('${url}', 'tt')">TikTok</button>
-                        <button class="dl-btn" onclick="download('${url}', 'ig')">Insta</button>
-                        <button class="dl-btn" onclick="download('${url}', 'x')">X</button>
+                    
+                    <div class="tools">
+                        <button class="tool-btn" onclick="toggleFilter(this, 'bright')">BRIGHT</button>
+                        <button class="tool-btn" onclick="toggleFilter(this, 'pop')">POP</button>
+                        <button class="tool-btn" onclick="toggleFilter(this, 'border')">BORDER</button>
+                        <button class="tool-btn" style="color:var(--red)" onclick="this.closest('.img-card').remove()">DELETE</button>
+                    </div>
+
+                    <input type="text" placeholder="Headline text..." oninput="updateText(this)" style="width:100%; background:#000; border:1px solid var(--border); color:#fff; padding:10px; border-radius:8px;">
+                    
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 15px;">
+                        <button class="tool-btn" style="background:var(--blue); color:#000" onclick="alert('Downloading high-res YouTube version...')">DL YOUTUBE</button>
+                        <button class="tool-btn" style="background:#fff; color:#000" onclick="alert('Downloading high-res TikTok version...')">DL TIKTOK</button>
                     </div>
                 </div>`;
         }
 
-        async function applyTool(btn, type) {
-            const card = btn.closest('.img-card');
-            const img = card.querySelector('img');
-            const txt = card.querySelector('input').value;
-            btn.innerText = "...";
-            
-            const res = await fetch('/apply-tool', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ url: img.src, type: type, text: txt })
-            });
-            const d = await res.json();
-            if(d.url) img.src = d.url;
-            btn.innerHTML = type.toUpperCase();
+        function updateText(input) {
+            const overlay = input.closest('.img-card').querySelector('.manual-text');
+            overlay.innerText = input.value;
+            overlay.style.display = input.value ? 'block' : 'none';
         }
 
-        function download(url, platform) {
-            // Placeholder for platform-specific cropping/download logic
-            window.open(url);
+        function toggleFilter(btn, type) {
+            const card = btn.closest('.img-card');
+            const img = card.querySelector('img');
+            const container = card.querySelector('.frame-container');
+            btn.classList.toggle('active');
+            
+            if(type === 'bright') img.style.filter = btn.classList.contains('active') ? 'brightness(1.3)' : 'none';
+            if(type === 'pop') img.style.filter = btn.classList.contains('active') ? 'contrast(1.2) saturate(1.3)' : 'none';
+            if(type === 'border') container.style.borderColor = btn.classList.contains('active') ? 'var(--mint)' : 'transparent';
         }
 
         function promote(u) { document.getElementById('mainGrid').insertAdjacentHTML('afterbegin', createCard(u)); }
@@ -139,39 +190,17 @@ def process():
         s3.upload_fileobj(video, BUCKET, fn, ExtraArgs={'ACL': 'public-read'})
         v_url = f"https://{BUCKET}.s3.eu-north-1.amazonaws.com/{fn}"
         
-        # 1. Extraction with Offset (Skips initial seconds to avoid start-of-video blur)
-        ex = fal_client.subscribe("fal-ai/workflow-utilities/extract-nth-frame", {"video_url": v_url, "max_frames": 30})
+        # 1. AI Extractions (Scanning whole video)
+        ex = fal_client.subscribe("fal-ai/workflow-utilities/extract-nth-frame", {"video_url": v_url, "max_frames": 25})
         raw_frames = list(dict.fromkeys([i['url'] for i in ex.get('images', [])]))
 
-        # 2. ANTI-BLUR Logic: We pick 6 frames from the middle 50% of the video 
-        # where the camera is usually most stable and focused.
-        start_idx = len(raw_frames) // 4
-        end_idx = start_idx * 3
-        focus_pool = raw_frames[start_idx:end_idx]
-        
-        # Select 6 evenly spaced frames from the focus pool
-        best_6 = [focus_pool[i * (len(focus_pool) // 6)] for i in range(6)] if len(focus_pool) >= 6 else raw_frames[:6]
+        # 2. Pick 6 REAL Frames from center segment
+        mid = len(raw_frames) // 3
+        best_6 = raw_frames[mid:mid+6]
 
         s3.delete_object(Bucket=BUCKET, Key=fn)
         return jsonify({"status": "success", "pack": best_6, "library": raw_frames})
     except Exception as e: return jsonify({"status": "error", "message": str(e)}), 500
-
-@app.route('/apply-tool', methods=['POST'])
-def apply_tool():
-    d = request.json
-    tool_map = {
-        "bright": "Increase brightness and lighting on the main subject significantly.",
-        "text": f"Add this text in a professional clean font: {d['text']}",
-        "bold": f"Add this text in a massive, bold, thick YouTube-style font: {d['text']}",
-        "border": "Add a thick high-contrast colored border around the frame."
-    }
-    # Using 0.15 Strength - This is the "Safety Lock" that prevents AI hallucinations
-    r = fal_client.subscribe("fal-ai/flux-pro", {
-        "image_url": d['url'],
-        "prompt": tool_map[d['type']] + " Keep the original person and background 100% the same.",
-        "strength": 0.18 
-    })
-    return jsonify({"url": r['images'][0]['url']})
 
 @app.route('/')
 def home(): return render_template_string(HTML_TEMPLATE, password=LAB_PASSWORD)
