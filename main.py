@@ -2,7 +2,7 @@ import os, boto3, fal_client, time, json, threading, random
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
 
 app = Flask(__name__)
-app.secret_key = "studio_v56_hd_fix"
+app.secret_key = "studio_v58_locked_logic"
 ACCESS_PASSWORD = "Heathumb2026"
 
 # Cloud & S3 Logic
@@ -21,11 +21,10 @@ HTML_TEMPLATE = """
         :root { --mint: #00FFC2; --carbon: #0B0D10; --card: #151A21; --border: #273140; --blue: #40E0FF; --pink: #FF007A; --red: #ff4d4d; }
         body { background: var(--carbon); color: #E9EEF5; font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; overflow:hidden; }
         
-        /* Sidebar */
+        /* Sidebar & Bank */
         .sidebar { width: 320px; background: var(--card); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
         .sidebar-sec { padding: 15px; border-bottom: 1px solid var(--border); }
         .section-title { font-size: 10px; font-weight: 900; color: var(--blue); text-transform: uppercase; margin-bottom: 10px; }
-        
         .frame-bank { padding: 10px; display: grid; grid-template-columns: 1fr; gap: 12px; }
         .bank-item { position: relative; border-radius: 6px; overflow: hidden; border: 1px solid #333; }
         .bank-img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
@@ -34,13 +33,13 @@ HTML_TEMPLATE = """
         .add-btn { top: 5px; right: 5px; background: var(--mint); color: #000; }
         .del-btn-small { top: 5px; left: 5px; background: var(--red); color: #fff; }
 
-        /* Workspace */
+        /* Workspace Grid */
         .workspace { flex: 1; padding: 30px; overflow-y: auto; background: #080a0d; }
         .main-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 40px; max-width: 1400px; margin: 0 auto; }
 
+        /* Canvas & Editor */
         .editor-card { background: var(--card); border-radius: 12px; padding: 15px; border: 1px solid var(--border); position: relative; }
         .canvas-area { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; border-radius: 8px; }
-        
         .bg-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
         .subject-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; pointer-events: none; }
         .sticker-mode { filter: drop-shadow(0 0 12px rgba(255,255,255,0.9)) drop-shadow(0 0 2px #fff); }
@@ -50,31 +49,44 @@ HTML_TEMPLATE = """
         .overlay-text { font-weight: 900; text-transform: uppercase; white-space: nowrap; padding: 5px; text-shadow: 2px 2px 10px #000; font-size: 24px; outline: none; }
 
         .card-controls { margin-top: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .c-btn { background: #242b35; border: 1px solid var(--border); color: #fff; padding: 10px; font-size: 11px; cursor: pointer; border-radius: 6px; font-weight: 700; }
+        .c-btn { background: #242b35; border: 1px solid var(--border); color: #fff; padding: 10px; font-size: 11px; cursor: pointer; border-radius: 6px; font-weight: 700; transition: 0.2s; }
+        .c-btn:hover { background: #323d4d; }
         
         .export-box { grid-column: span 3; display: flex; gap: 8px; margin-top: 5px; }
         .dl-select { flex: 1; background: var(--pink); color: #fff; border: none; border-radius: 6px; padding: 12px; font-size: 11px; font-weight: 900; cursor: pointer; text-transform: uppercase; }
 
-        /* HD MODAL ENLARGE */
-        #enlargeModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 20000; display: none; align-items: center; justify-content: center; }
-        #modalContainer { width: 90vw; height: 50.625vw; position: relative; box-shadow: 0 0 50px rgba(0,0,0,1); }
-        .close-modal { position: absolute; top: -50px; right: 0; color: white; font-size: 30px; cursor: pointer; font-weight: 900; }
+        /* PREVIEW MODAL FIXED */
+        #enlargeModal { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 9999; 
+            display: none; align-items: center; justify-content: center; 
+            backdrop-filter: blur(8px);
+        }
+        #modalContainer { 
+            width: 85vw; height: 47.8vw; position: relative; 
+            background: #000; border: 1px solid #444; border-radius: 8px;
+        }
+        .close-bar { 
+            position: absolute; top: -50px; right: 0; background: var(--red); 
+            color: white; padding: 10px 25px; border-radius: 4px; 
+            font-weight: 900; cursor: pointer; font-size: 14px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body>
     {% if not logged_in %}
     <div style="display:flex; height:100vh; width:100vw; align-items:center; justify-content:center;">
         <form method="POST" action="/login" style="background:var(--card); padding:40px; border-radius:12px; border:1px solid var(--border);">
-            <h2 style="color:var(--mint); margin-top:0;">Viral Studio V56</h2>
+            <h2 style="color:var(--mint); margin-top:0;">Viral Studio V58</h2>
             <input type="password" name="password" style="width:100%; padding:10px; margin-bottom:20px; border-radius:4px; border:1px solid var(--border); background:#000; color:white;">
-            <button type="submit" class="c-btn" style="width:100%; background:var(--mint); color:#000;">AUTHORIZE</button>
+            <button type="submit" class="c-btn" style="width:100%; background:var(--mint); color:#000;">LOG IN</button>
         </form>
     </div>
     {% else %}
-    <div id="enlargeModal">
-        <div id="modalContainer">
-            <span class="close-modal" onclick="closeEnlarge()">✕ CLOSE</span>
-            <div id="modalCanvas" style="width:100%; height:100%; position:relative; overflow:hidden; border-radius:12px;"></div>
+    <div id="enlargeModal" onclick="closeEnlarge()">
+        <div id="modalContainer" onclick="event.stopPropagation()">
+            <div class="close-bar" onclick="closeEnlarge()">✕ CLOSE PREVIEW (ESC)</div>
+            <div id="modalCanvas" style="width:100%; height:100%; position:relative; overflow:hidden;"></div>
         </div>
     </div>
 
@@ -97,6 +109,9 @@ HTML_TEMPLATE = """
 
     <script>
         let allFrames = []; let workspaceFrames = [];
+
+        // Global Esc Key Listener
+        document.addEventListener('keydown', (e) => { if(e.key === "Escape") closeEnlarge(); });
 
         function uploadVideo() {
             const fd = new FormData(); fd.append('video', document.getElementById('vidInp').files[0]);
@@ -138,8 +153,8 @@ HTML_TEMPLATE = """
                         <button class="c-btn" style="background:var(--blue); color:#000;" onclick="openEnlarge(${i})">ENLARGE</button>
                         <div class="export-box">
                             <select class="dl-select" onchange="exportFrame(${i}, this.value)">
-                                <option value="">💾 DOWNLOAD...</option>
-                                <option value="png">PNG (Best)</option>
+                                <option value="">💾 DOWNLOAD</option>
+                                <option value="png">PNG (Clear)</option>
                                 <option value="jpg">JPG</option>
                             </select>
                         </div>
@@ -151,13 +166,9 @@ HTML_TEMPLATE = """
         function openEnlarge(i) {
             const original = document.getElementById(`export-${i}`);
             const modalCanvas = document.getElementById('modalCanvas');
-            modalCanvas.innerHTML = original.innerHTML; // Clone content
-            
-            // Fix text scaling for the large modal view
-            modalCanvas.querySelectorAll('.overlay-text').forEach(t => {
-                t.style.fontSize = "5vw"; // Scale text to screen size
-            });
-            
+            modalCanvas.innerHTML = original.innerHTML; 
+            modalCanvas.querySelectorAll('.overlay-text').forEach(t => { t.style.fontSize = "4.5vw"; });
+            modalCanvas.querySelectorAll('.drag-item:not(.overlay-text)').forEach(img => { img.style.width = "8vw"; });
             document.getElementById('enlargeModal').style.display = 'flex';
         }
 
@@ -172,16 +183,9 @@ HTML_TEMPLATE = """
         function exportFrame(i, format) {
             if(!format) return;
             const target = document.getElementById(`export-${i}`);
-            // Use scale 4 and specific dimensions to prevent stretching
-            html2canvas(target, { 
-                useCORS: true, 
-                scale: 4, 
-                backgroundColor: null,
-                width: target.offsetWidth,
-                height: target.offsetHeight
-            }).then(canvas => {
+            html2canvas(target, { useCORS: true, scale: 4, backgroundColor: null }).then(canvas => {
                 const link = document.createElement('a');
-                link.download = `Viral_Studio_HD_${i}.${format}`;
+                link.download = `Viral_Studio_V58_${i}.${format}`;
                 link.href = canvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : format}`);
                 link.click();
             });
@@ -243,7 +247,7 @@ def process():
 def background_monitor(jid, handler, s3_key):
     try:
         result = handler.get(); frames = [i['url'] for i in result.get('images', [])]
-        s3.delete_object(Bucket=BUCKET, Key=s3_key) # PURGE S3 VIDEO
+        s3.delete_object(Bucket=BUCKET, Key=s3_key) 
         jobs[jid]['status'] = 'completed'; jobs[jid]['frames'] = frames
     except: jobs[jid]['status'] = 'error'
 
