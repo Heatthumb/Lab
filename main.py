@@ -6,22 +6,12 @@ app.secret_key = "studio_secret_key"
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024 
 ACCESS_PASSWORD = "CREATOR_PRO_2026"
 
-# Environment Variables
 os.environ["FAL_KEY"] = os.environ.get("FAL_KEY", "")
 s3 = boto3.client('s3', region_name='eu-north-1')
 BUCKET = os.environ.get("AWS_BUCKET_NAME", "")
 PROJECTS_FILE = "user_vault.json"
 
 jobs = {}
-
-def get_next_id():
-    if not os.path.exists(PROJECTS_FILE): return "101"
-    with open(PROJECTS_FILE, "r") as f:
-        try:
-            data = json.load(f)
-            nums = [int(k) for k in data.keys() if k.isdigit()]
-            return str(max(nums + [100]) + 1)
-        except: return "101"
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -30,162 +20,163 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <style>
         :root { --mint: #00FFC2; --carbon: #0B0D10; --card: #151A21; --border: #273140; --blue: #40E0FF; }
-        body { background: var(--carbon); color: #E9EEF5; font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        body { background: var(--carbon); color: #E9EEF5; font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; }
         
-        .sidebar { width: 260px; background: var(--card); border-right: 1px solid var(--border); overflow-y: auto; }
-        .sidebar-header { padding: 20px; font-weight: 900; color: var(--blue); border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; }
-        .proj-item { padding: 15px 20px; border-bottom: 1px solid #1e252e; cursor: pointer; font-size: 12px; color: #8a99af; transition: 0.2s; }
-        .proj-item:hover { background: #1c232d; color: var(--mint); }
+        /* Sidebar (The Frame Bank) */
+        .sidebar { width: 320px; background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .bank-header { padding: 20px; font-weight: 900; color: var(--blue); border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; }
+        .frame-bank { flex: 1; overflow-y: auto; padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .bank-item { position: relative; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
+        .bank-img { width: 100%; aspect-ratio: 16/9; object-fit: cover; cursor: zoom-in; }
+        .add-btn { position: absolute; top: 5px; right: 5px; background: var(--mint); color: #000; border: none; border-radius: 50%; width: 24px; height: 24px; font-weight: 900; cursor: pointer; }
 
-        .workspace { flex: 1; padding: 20px; display: flex; flex-direction: column; align-items: center; background: #080a0d; overflow-y: auto; }
-        .upload-btn { background: var(--mint); color: #000; padding: 14px 35px; border-radius: 50px; font-weight: 900; cursor: pointer; border: none; margin-bottom: 10px; }
+        /* Workspace Grid */
+        .workspace { flex: 1; padding: 20px; background: #080a0d; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
+        .upload-row { display: flex; gap: 20px; align-items: center; margin-bottom: 20px; }
+        .main-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; width: 100%; max-width: 1200px; }
         
-        /* Updated 6-Picture Grid Layout */
-        .frames-grid { 
-            width: 900px; 
-            display: grid; 
-            grid-template-columns: repeat(6, 1fr); 
-            gap: 10px; 
-            padding: 15px 0; 
-            border-bottom: 1px solid var(--border); 
-            margin-bottom: 15px; 
+        /* Individual Editor Card */
+        .editor-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; padding: 10px; }
+        .canvas-area { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; }
+        .canvas-img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .overlay-text { 
+            position: absolute; top: 20%; left: 10%; color: white; font-weight: 900; text-transform: uppercase; 
+            text-shadow: 2px 2px 0 #000; cursor: move; font-size: 20px; line-height: 1; pointer-events: auto;
         }
-        .thumb { 
-            width: 100%; 
-            aspect-ratio: 16/9; 
-            object-fit: cover; 
-            border-radius: 4px; 
-            cursor: pointer; 
-            border: 2px solid transparent; 
-            transition: 0.2s; 
-        }
-        .thumb:hover { transform: scale(1.1); border-color: var(--mint); z-index: 10; }
 
-        .canvas-wrap { position: relative; width: 854px; height: 480px; background: #000; border-radius: 12px; overflow: hidden; border: 4px solid var(--border); }
-        #bgImg { width: 100%; height: 100%; object-fit: cover; }
-        .draggable { position: absolute; cursor: move; user-select: none; font-weight: 900; color: white; text-transform: uppercase; text-shadow: 3px 3px 0 #000; font-size: 50px; z-index: 50; }
+        /* Per-Picture Controls */
+        .controls { margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .control-input { background: #000; border: 1px solid #333; color: #fff; padding: 5px; border-radius: 4px; font-size: 11px; grid-column: span 2; }
+        .c-btn { background: #242b35; border: 1px solid var(--border); color: #fff; padding: 5px; font-size: 10px; cursor: pointer; border-radius: 3px; font-weight: 700; }
+        .c-btn:hover { border-color: var(--mint); color: var(--mint); }
+        .color-row { display: flex; gap: 5px; grid-column: span 2; align-items: center; font-size: 10px; }
 
-        .toolbar { width: 854px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; background: var(--card); padding: 20px; margin-top: 10px; border-radius: 12px; border: 1px solid var(--border); }
-        .btn { width: 100%; padding: 10px; background: #242b35; border: 1px solid var(--border); color: #fff; border-radius: 6px; cursor: pointer; font-weight: 800; font-size: 11px; }
-        .input-dark { padding:10px; background:#000; border:1px solid #333; color:#fff; border-radius:4px; width: 90%; }
+        /* Preview Modal */
+        #previewModal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; display: none; align-items: center; justify-content: center; cursor: zoom-out; }
+        #previewImg { max-width: 90%; max-height: 90%; border: 3px solid var(--mint); }
     </style>
 </head>
 <body>
-    {% if not logged_in %}
-    <div style="display:flex; align-items:center; justify-content:center; width:100%;">
-        <form method="POST" action="/login" style="background:var(--card); padding:40px; border-radius:12px; text-align:center;">
-            <h2 style="color:var(--blue)">STUDIO LOGIN</h2>
-            <input type="password" name="password" class="input-dark" placeholder="Password" required><br><br>
-            <button type="submit" class="btn" style="background:var(--mint); color:#000;">ACCESS</button>
-        </form>
-    </div>
-    {% else %}
+    <div id="previewModal" onclick="this.style.display='none'"><img id="previewImg" src=""></div>
+
     <div class="sidebar">
-        <div class="sidebar-header">PROJECT HISTORY</div>
-        <div id="projectList"></div>
+        <div class="bank-header">Frame Bank (30 Extracted)</div>
+        <div id="frameBank" class="frame-bank"></div>
     </div>
 
     <div class="workspace">
-        <input type="file" id="vidInp" style="display:none;" onchange="upload()">
-        <button class="upload-btn" id="upBtn" onclick="document.getElementById('vidInp').click()">+ EXTRACT NEW VIDEO</button>
-        <div id="status" style="font-size:12px; color:var(--blue); font-weight:700; margin-bottom:10px;">Ready.</div>
-
-        <!-- This now shows 6 pictures across -->
-        <div id="framesGrid" class="frames-grid"></div>
-
-        <div class="canvas-wrap">
-            <img id="bgImg" src="">
-            <div id="textLayer" class="draggable">VIRAL TEXT</div>
+        <div class="upload-row">
+            <input type="file" id="vidInp" style="display:none;" onchange="upload()">
+            <button style="background:var(--mint); padding:10px 25px; border-radius:50px; font-weight:900; border:none; cursor:pointer;" onclick="document.getElementById('vidInp').click()">+ NEW PROJECT</button>
+            <div id="status" style="color:var(--blue); font-size:12px; font-weight:700;">Ready.</div>
         </div>
 
-        <div class="toolbar">
-            <div>
-                <input type="text" id="textInp" oninput="updateText()" placeholder="Type Headline..." class="input-dark">
-                <button class="btn" style="margin-top:5px" onclick="changeSize(5)">SIZE +</button>
-            </div>
-            <div>
-                <button class="btn" onclick="zoom(1.8)">EMOTION ZOOM</button>
-                <button class="btn" style="margin-top:5px" onclick="zoom(1)">RESET</button>
-            </div>
-            <div>
-                <button class="btn" style="background:var(--blue); color:#000; border:none;" onclick="alert('Syncing...')">SYNC YT</button>
-                <button class="btn" style="margin-top:5px" onclick="window.print()">SAVE PNG</button>
-            </div>
+        <div id="mainGrid" class="main-grid">
+            <!-- 6 Editor Cards Generated Here -->
         </div>
     </div>
-    {% endif %}
 
     <script>
-        let textSize = 50;
-        let active = null;
-        let currentJob = null;
-
-        document.addEventListener('mousedown', e => { if(e.target.id==='textLayer') { active=e.target; active.ox=e.clientX-active.offsetLeft; active.oy=e.clientY-active.offsetTop; } });
-        document.addEventListener('mousemove', e => { if(active) { active.style.left=(e.clientX-active.ox)+'px'; active.style.top=(e.clientY-active.oy)+'px'; } });
-        document.addEventListener('mouseup', () => active=null);
+        let allFrames = [];
+        let workspaceFrames = [];
 
         function upload() {
-            const file = document.getElementById('vidInp').files[0];
             const fd = new FormData();
-            fd.append('video', file);
-            document.getElementById('status').innerText = "Uploading & Analyzing...";
-            document.getElementById('upBtn').disabled = true;
-
-            fetch('/process', { method: 'POST', body: fd })
-                .then(r => r.json())
-                .then(data => { currentJob = data.job_id; pollStatus(); });
+            fd.append('video', document.getElementById('vidInp').files[0]);
+            document.getElementById('status').innerText = "Uploading & Purging Video...";
+            fetch('/process', { method: 'POST', body: fd }).then(r => r.json()).then(data => pollStatus(data.job_id));
         }
 
-        function pollStatus() {
-            if(!currentJob) return;
-            fetch(`/status/${currentJob}`)
-                .then(r => r.json())
-                .then(data => {
-                    if (data.status === 'completed') {
-                        document.getElementById('status').innerText = "30 Frames Extracted. Video Purged.";
-                        renderFrames(data.frames);
-                        loadVault();
-                        document.getElementById('upBtn').disabled = false;
-                    } else if (data.status === 'error') {
-                        document.getElementById('status').innerText = "Error in extraction.";
-                        document.getElementById('upBtn').disabled = false;
-                    } else { setTimeout(pollStatus, 3000); }
-                });
+        function pollStatus(jid) {
+            fetch(`/status/${jid}`).then(r => r.json()).then(data => {
+                if (data.status === 'completed') {
+                    allFrames = data.frames;
+                    workspaceFrames = allFrames.slice(0, 6);
+                    renderAll();
+                } else { setTimeout(() => pollStatus(jid), 3000); }
+            });
         }
 
-        function renderFrames(frames) {
-            document.getElementById('framesGrid').innerHTML = frames.map(u => `
-                <img src="${u}" class="thumb" onclick="setCanvas('${u}')">
+        function renderAll() {
+            // Render Bank
+            document.getElementById('frameBank').innerHTML = allFrames.map((u, i) => `
+                <div class="bank-item">
+                    <img src="${u}" class="bank-img" onclick="preview('${u}')">
+                    <button class="add-btn" onclick="addToWorkspace(${i})">+</button>
+                </div>
             `).join('');
-            if(frames.length > 0) setCanvas(frames[0]);
+
+            // Render Workspace (6 Pictures)
+            document.getElementById('mainGrid').innerHTML = workspaceFrames.map((u, i) => `
+                <div class="editor-card" id="card-${i}">
+                    <div class="canvas-area">
+                        <img src="${u}" class="canvas-img" onclick="preview('${u}')">
+                        <div class="overlay-text" id="text-${i}" contenteditable="true">EDIT ME</div>
+                    </div>
+                    <div class="controls">
+                        <input type="text" class="control-input" placeholder="Text..." oninput="updateText(${i}, this.value)">
+                        <button class="c-btn" onclick="adjSize(${i}, 5)">Size +</button>
+                        <button class="c-btn" onclick="adjSize(${i}, -5)">Size -</button>
+                        <button class="c-btn" onclick="toggleBorder(${i})">Border</button>
+                        <button class="c-btn" onclick="alert('Logo Added')">Add Logo</button>
+                        <div class="color-row">
+                            Color: <input type="color" onchange="updateColor(${i}, this.value)" style="height:20px; width:100%;">
+                        </div>
+                        <button class="c-btn" style="grid-column:span 2; background:var(--blue); color:#000;" onclick="window.print()">Download PNG</button>
+                    </div>
+                </div>
+            `).join('');
+            setupDraggable();
         }
 
-        function setCanvas(url) { document.getElementById('bgImg').src = url; }
+        function addToWorkspace(idx) {
+            workspaceFrames.shift(); // Remove oldest
+            workspaceFrames.push(allFrames[idx]);
+            renderAll();
+        }
+
+        function preview(url) {
+            document.getElementById('previewImg').src = url;
+            document.getElementById('previewModal').style.display = 'flex';
+        }
+
+        function updateText(i, val) { document.getElementById(`text-${i}`).innerText = val; }
+        function adjSize(i, val) { 
+            let el = document.getElementById(`text-${i}`);
+            let cur = parseInt(window.getComputedStyle(el).fontSize);
+            el.style.fontSize = (cur + val) + 'px';
+        }
+        function updateColor(i, val) { document.getElementById(`text-${i}`).style.color = val; }
+        function toggleBorder(i) {
+            let el = document.getElementById(`text-${i}`);
+            el.style.webkitTextStroke = el.style.webkitTextStroke ? "" : "1px black";
+        }
+
+        function setupDraggable() {
+            document.querySelectorAll('.overlay-text').forEach(el => {
+                el.onmousedown = function(e) {
+                    let ox = e.clientX - el.offsetLeft;
+                    let oy = e.clientY - el.offsetTop;
+                    document.onmousemove = function(e) {
+                        el.style.left = (e.clientX - ox) + 'px';
+                        el.style.top = (e.clientY - oy) + 'px';
+                    }
+                    document.onmouseup = () => document.onmousemove = null;
+                }
+            });
+        }
         
-        async function loadVault() {
-            const res = await fetch('/get_vault');
-            const data = await res.json();
-            document.getElementById('projectList').innerHTML = Object.keys(data).sort((a,b)=>b-a).map(n => `
-                <div class="proj-item" onclick="openProj('${n}')">📁 History #${n}</div>
-            `).join('');
+        function renderEmpty() {
+            document.getElementById('mainGrid').innerHTML = Array(6).fill('<div class="editor-card" style="height:200px; display:flex; align-items:center; justify-content:center; color:#333;">Empty Slot</div>').join('');
         }
-
-        async function openProj(n) {
-            const res = await fetch('/get_vault');
-            const data = await res.json();
-            renderFrames(data[n]);
-        }
-
-        function updateText() { document.getElementById('textLayer').innerText = document.getElementById('textInp').value; }
-        function changeSize(v) { textSize += v; document.getElementById('textLayer').style.fontSize = textSize+'px'; }
-        function zoom(s) { document.getElementById('bgImg').style.transform = `scale(${s})`; }
-
-        {% if logged_in %} loadVault(); {% endif %}
+        renderEmpty();
     </script>
 </body>
 </html>
 """
 
+# --- BACKEND LOGIC (Same as V44 for stability) ---
 @app.route('/login', methods=['POST'])
 def login():
     if request.form.get('password') == ACCESS_PASSWORD: session['logged_in'] = True
@@ -193,41 +184,25 @@ def login():
 
 @app.route('/process', methods=['POST'])
 def process():
-    if not session.get('logged_in'): return jsonify({"error": "Unauthorized"}), 401
     video = request.files['video']
-    job_id = str(int(time.time()))
-    jobs[job_id] = {'status': 'processing'}
+    job_id = str(int(time.time())); jobs[job_id] = {'status': 'processing'}
     temp_fn = f"raw_{job_id}.mp4"
-    
-    try:
-        s3.upload_fileobj(video, BUCKET, temp_fn, ExtraArgs={'ACL': 'public-read', 'ContentType': 'video/mp4'})
-        v_url = f"https://{BUCKET}.s3.eu-north-1.amazonaws.com/{temp_fn}"
-        handler = fal_client.submit("fal-ai/workflow-utilities/extract-nth-frame", {"video_url": v_url, "max_frames": 30})
-        threading.Thread(target=background_monitor, args=(job_id, handler, temp_fn)).start()
-        return jsonify({"job_id": job_id})
-    except Exception as e: return jsonify({"error": str(e)}), 500
+    s3.upload_fileobj(video, BUCKET, temp_fn, ExtraArgs={'ACL': 'public-read', 'ContentType': 'video/mp4'})
+    v_url = f"https://{BUCKET}.s3.eu-north-1.amazonaws.com/{temp_fn}"
+    handler = fal_client.submit("fal-ai/workflow-utilities/extract-nth-frame", {"video_url": v_url, "max_frames": 30})
+    threading.Thread(target=background_monitor, args=(job_id, handler, temp_fn)).start()
+    return jsonify({"job_id": job_id})
 
 def background_monitor(jid, handler, s3_key):
     try:
         result = handler.get()
         frames = [i['url'] for i in result.get('images', [])]
-        s3.delete_object(Bucket=BUCKET, Key=s3_key) 
-        p_id = get_next_id()
-        if not os.path.exists(PROJECTS_FILE):
-            with open(PROJECTS_FILE, "w") as f: json.dump({}, f)
-        with open(PROJECTS_FILE, "r+") as f:
-            vault_data = json.load(f); vault_data[p_id] = frames
-            f.seek(0); json.dump(vault_data, f); f.truncate()
+        s3.delete_object(Bucket=BUCKET, Key=s3_key) # PURGE
         jobs[jid] = {'status': 'completed', 'frames': frames}
     except: jobs[jid] = {'status': 'error'}
 
 @app.route('/status/<job_id>')
 def status(job_id): return jsonify(jobs.get(job_id, {'status': 'not_found'}))
-
-@app.route('/get_vault')
-def get_vault():
-    if not os.path.exists(PROJECTS_FILE): return jsonify({})
-    with open(PROJECTS_FILE, "r") as f: return jsonify(json.load(f))
 
 @app.route('/')
 def home(): return render_template_string(HTML_TEMPLATE, logged_in=session.get('logged_in'))
