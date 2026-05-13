@@ -67,7 +67,13 @@ HTML_TEMPLATE = """
 </head>
 <body>
     {% if not logged_in %}
-    <!-- Login Logic same as previous -->
+    <div style="display:flex; height:100vh; width:100vw; align-items:center; justify-content:center;">
+        <form method="POST" action="/login" style="background:var(--card); padding:40px; border-radius:12px; border:1px solid var(--border);">
+            <h2 style="color:var(--mint); margin-top:0;">Viral Studio Login</h2>
+            <input type="password" name="password" placeholder="Heathumb2026" style="width:100%; padding:10px; margin-bottom:20px; border-radius:4px; border:1px solid var(--border); background:#000; color:white;">
+            <button type="submit" class="c-btn" style="width:100%; background:var(--mint); color:#000;">AUTHORIZE</button>
+        </form>
+    </div>
     {% else %}
     <div id="previewModal" onclick="this.style.display='none'"><img id="previewImg" src=""></div>
 
@@ -112,7 +118,6 @@ HTML_TEMPLATE = """
         }
 
         function renderAll() {
-            // Sidebar with X to delete and + to add
             document.getElementById('frameBank').innerHTML = allFrames.map((u, i) => `
                 <div class="bank-item">
                     <img src="${u}" class="bank-img">
@@ -121,7 +126,6 @@ HTML_TEMPLATE = """
                 </div>
             `).join('');
 
-            // Main Workspace with X to remove from the 6
             document.getElementById('mainGrid').innerHTML = workspaceFrames.map((f, i) => `
                 <div class="editor-card">
                     <button class="card-delete" onclick="removeFromWorkspace(${i})">X</button>
@@ -208,14 +212,52 @@ HTML_TEMPLATE = """
                 }
             });
         }
+        
+        function loadLogos() {
+            const files = document.getElementById('logoInp').files;
+            for(let f of files) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.style.width = "100%";
+                    img.style.cursor = "pointer";
+                    img.onclick = () => addLogoToAll(e.target.result);
+                    document.getElementById('logoBank').appendChild(img);
+                };
+                reader.readAsDataURL(f);
+            }
+        }
+
+        function addLogoToAll(src) {
+            document.querySelectorAll('.canvas-area').forEach(canvas => {
+                const img = document.createElement('img');
+                img.src = src;
+                img.className = "drag-item";
+                img.style.width = "60px";
+                canvas.appendChild(img);
+            });
+            setupDraggables();
+        }
     </script>
 </body>
 </html>
 """
 
-# Backend: Random sampling logic
+@app.route('/login', methods=['POST'])
+def login():
+    if request.form.get('password') == ACCESS_PASSWORD:
+        session['logged_in'] = True
+    return redirect(url_for('home'))
+
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    return redirect(url_for('home'))
+
 @app.route('/process', methods=['POST'])
 def process():
+    if not session.get('logged_in'): return jsonify({"status": "unauthorized"})
     video = request.files['video']
     job_id = str(int(time.time()))
     temp_fn = f"raw_{job_id}.mp4"
@@ -234,9 +276,18 @@ def background_monitor(jid, handler, s3_key):
     try:
         result = handler.get()
         frames = [i['url'] for i in result.get('images', [])]
-        s3.delete_object(Bucket=BUCKET, Key=s3_key) # Video deleted immediately
+        s3.delete_object(Bucket=BUCKET, Key=s3_key) # PURGE S3 VIDEO IMMEDIATELY
         jobs[jid]['status'] = 'completed'
         jobs[jid]['frames'] = frames
     except: jobs[jid]['status'] = 'error'
 
-# (Remaining login/logout routes)
+@app.route('/status/<job_id>')
+def status(job_id):
+    job = jobs.get(job_id, {'status': 'not_found'})
+    return jsonify({'status': job['status'], 'frames': job.get('frames', []), 'chosen_indices': job.get('indices', [])})
+
+@app.route('/')
+def home(): return render_template_string(HTML_TEMPLATE, logged_in=session.get('logged_in'))
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=8080)
