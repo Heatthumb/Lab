@@ -2,7 +2,7 @@ import os, boto3, fal_client, time, json, threading, random
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
 
 app = Flask(__name__)
-app.secret_key = "studio_v62_final_render"
+app.secret_key = "studio_v63_final_aspect"
 ACCESS_PASSWORD = "Heathumb2026"
 
 # Cloud & S3 Logic (Video is deleted immediately after extraction)
@@ -52,24 +52,24 @@ HTML_TEMPLATE = """
         .dl-select { flex: 1; background: var(--pink); color: #fff; border: none; border-radius: 6px; padding: 12px; font-size: 11px; font-weight: 900; cursor: pointer; }
         .format-select { flex: 1; background: #242b35; color: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 11px; font-weight: 700; cursor: pointer; }
 
-        #enlargeModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: none; align-items: center; justify-content: center; }
-        #modalContainer { width: 90vw; height: 50.62vw; position: relative; background: #000; border: 1px solid #333; }
-        .close-btn { position: absolute; top: -50px; right: 0; color: white; font-weight: 900; cursor: pointer; background: var(--red); padding: 8px 20px; border-radius: 4px; }
+        #enlargeModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        #modalContainer { width: 85vw; height: 47.8vw; position: relative; background: #000; border: 1px solid #333; }
+        .close-btn { position: absolute; top: -50px; right: 0; color: white; font-weight: 900; cursor: pointer; background: var(--red); padding: 10px 25px; border-radius: 6px; border: none; font-size: 14px; }
     </style>
 </head>
 <body>
     {% if not logged_in %}
     <div style="display:flex; height:100vh; width:100vw; align-items:center; justify-content:center;">
         <form method="POST" action="/login" style="background:var(--card); padding:40px; border-radius:12px; border:1px solid var(--border);">
-            <h2 style="color:var(--mint); margin-top:0;">Viral Studio V62</h2>
+            <h2 style="color:var(--mint); margin-top:0;">Viral Studio V63</h2>
             <input type="password" name="password" style="width:100%; padding:10px; margin-bottom:20px; border-radius:4px; border:1px solid var(--border); background:#000; color:white;">
             <button type="submit" class="c-btn" style="width:100%; background:var(--mint); color:#000;">LOGIN</button>
         </form>
     </div>
     {% else %}
-    <div id="enlargeModal" onclick="closeEnlarge()">
-        <div id="modalContainer" onclick="event.stopPropagation()">
-            <div class="close-btn" onclick="closeEnlarge()">✕ CLOSE (ESC)</div>
+    <div id="enlargeModal">
+        <div id="modalContainer">
+            <button class="close-btn" onclick="closeEnlarge()">EXIT PREVIEW (ESC)</button>
             <div id="modalCanvas" style="width:100%; height:100%; position:relative; overflow:hidden;"></div>
         </div>
     </div>
@@ -120,14 +120,14 @@ HTML_TEMPLATE = """
 
             document.getElementById('mainGrid').innerHTML = workspaceFrames.map((f, i) => `
                 <div class="editor-card">
-                    <button class="card-delete" onclick="removeFromWorkspace(${i})" style="position:absolute; top:-10px; right:-10px; background:var(--red); color:white; border:none; width:28px; height:28px; border-radius:50%; font-weight:900; z-index:20;">X</button>
+                    <button class="card-delete" onclick="removeFromWorkspace(${i})" style="position:absolute; top:-10px; right:-10px; background:var(--red); color:white; border:none; width:28px; height:28px; border-radius:50%; font-weight:900; z-index:20; cursor:pointer;">X</button>
                     <div class="canvas-area" id="export-${i}" style="border: ${f.border ? '6px solid '+f.color : '0px'}">
-                        <img src="${f.url}" class="bg-layer" style="filter:blur(${f.blur}px)">
-                        <img src="${f.url}" class="subject-layer ${f.sticker ? 'sticker-mode' : ''}">
+                        <img src="${f.url}" class="bg-layer" style="filter:blur(${f.blur}px); object-fit: contain;">
+                        <img src="${f.url}" class="subject-layer ${f.sticker ? 'sticker-mode' : ''}" style="object-fit: contain;">
                         <div class="drag-item overlay-text" contenteditable="true" style="color:${f.color}">${f.text}</div>
                     </div>
                     <div class="card-controls">
-                        <input type="color" value="${f.color}" onchange="updateCard(${i}, 'color', this.value)" style="width:100%; height:35px; border:none; background:none;">
+                        <input type="color" value="${f.color}" onchange="updateCard(${i}, 'color', this.value)" style="width:100%; height:35px; border:none; background:none; cursor:pointer;">
                         <button class="c-btn" onclick="updateCard(${i}, 'sticker', !workspaceFrames[${i}].sticker)">Glow: ${f.sticker?'ON':'OFF'}</button>
                         <button class="c-btn" onclick="updateCard(${i}, 'border', !workspaceFrames[${i}].border)">Border</button>
                         <button class="c-btn" onclick="adjBlur(${i}, 5)">Blur +</button>
@@ -150,18 +150,21 @@ HTML_TEMPLATE = """
             const target = document.getElementById(`export-${i}`);
             const format = document.getElementById(`format-${i}`).value;
             
-            // Hardcoded Export Logic to stop stretching
             let finalW = 1920, finalH = 1080;
             if (format === "9/16") { finalW = 1080; finalH = 1920; }
             else if (format === "1/1") { finalW = 1080; finalH = 1080; }
 
-            // Create invisible high-res replica
             const offscreen = target.cloneNode(true);
             offscreen.style.width = finalW + "px";
             offscreen.style.height = finalH + "px";
             offscreen.style.position = "fixed";
             offscreen.style.top = "-9999px";
             offscreen.style.left = "-9999px";
+            
+            // Fix: ensure internal images don't stretch during hidden render
+            const imgs = offscreen.querySelectorAll('img');
+            imgs.forEach(img => { img.style.objectFit = "contain"; img.style.width = "100%"; img.style.height = "100%"; });
+
             document.body.appendChild(offscreen);
 
             html2canvas(offscreen, { 
@@ -172,7 +175,7 @@ HTML_TEMPLATE = """
                 height: finalH
             }).then(canvas => {
                 const link = document.createElement('a');
-                link.download = `ViralStudio_${format.replace('/','x')}_${i}.png`;
+                link.download = `Viral_Studio_${format.replace('/','x')}_${i}.png`;
                 link.href = canvas.toDataURL("image/png");
                 link.click();
                 document.body.removeChild(offscreen);
@@ -183,8 +186,8 @@ HTML_TEMPLATE = """
             const original = document.getElementById(`export-${i}`);
             const modalCanvas = document.getElementById('modalCanvas');
             modalCanvas.innerHTML = original.innerHTML; 
-            modalCanvas.querySelectorAll('.overlay-text').forEach(t => { t.style.fontSize = "5vw"; });
-            modalCanvas.querySelectorAll('.drag-item:not(.overlay-text)').forEach(img => { img.style.width = "10vw"; });
+            modalCanvas.querySelectorAll('.overlay-text').forEach(t => { t.style.fontSize = "4vw"; });
+            modalCanvas.querySelectorAll('.drag-item:not(.overlay-text)').forEach(img => { img.style.width = "8vw"; });
             document.getElementById('enlargeModal').style.display = 'flex';
         }
 
