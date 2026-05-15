@@ -2,10 +2,10 @@ import os, boto3, fal_client, time, json, threading, random
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
 
 app = Flask(__name__)
-app.secret_key = "studio_v59_locked"
+app.secret_key = "studio_v60_pro_export"
 ACCESS_PASSWORD = "Heathumb2026"
 
-# Cloud & S3 Logic
+# Cloud & S3 Logic (Video is deleted immediately after extraction)
 os.environ["FAL_KEY"] = os.environ.get("FAL_KEY", "")
 s3 = boto3.client('s3', region_name='eu-north-1')
 BUCKET = os.environ.get("AWS_BUCKET_NAME", "")
@@ -42,7 +42,6 @@ HTML_TEMPLATE = """
         .subject-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: 2; pointer-events: none; }
         .sticker-mode { filter: drop-shadow(0 0 15px rgba(255,255,255,1)) drop-shadow(0 0 5px #fff); }
 
-        .card-delete { position: absolute; top: -10px; right: -10px; background: var(--red); color: white; border: none; width: 28px; height: 28px; border-radius: 50%; font-weight: 900; cursor: pointer; z-index: 20; border: 2px solid var(--carbon); }
         .drag-item { position: absolute; cursor: move; z-index: 10; user-select: none; }
         .overlay-text { font-weight: 900; text-transform: uppercase; white-space: nowrap; padding: 5px; text-shadow: 2px 2px 12px #000; font-size: 26px; outline: none; }
 
@@ -51,8 +50,9 @@ HTML_TEMPLATE = """
         
         .export-box { grid-column: span 3; display: flex; gap: 8px; margin-top: 5px; }
         .dl-select { flex: 1; background: var(--pink); color: #fff; border: none; border-radius: 6px; padding: 12px; font-size: 11px; font-weight: 900; cursor: pointer; }
+        .format-select { flex: 1; background: #242b35; color: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 11px; font-weight: 700; cursor: pointer; }
 
-        #enlargeModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        #enlargeModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: none; align-items: center; justify-content: center; }
         #modalContainer { width: 90vw; height: 50.62vw; position: relative; background: #000; border: 1px solid #333; }
         .close-btn { position: absolute; top: -50px; right: 0; color: white; font-weight: 900; cursor: pointer; background: var(--red); padding: 8px 20px; border-radius: 4px; }
     </style>
@@ -61,9 +61,9 @@ HTML_TEMPLATE = """
     {% if not logged_in %}
     <div style="display:flex; height:100vh; width:100vw; align-items:center; justify-content:center;">
         <form method="POST" action="/login" style="background:var(--card); padding:40px; border-radius:12px; border:1px solid var(--border);">
-            <h2 style="color:var(--mint); margin-top:0;">Viral Studio V59</h2>
+            <h2 style="color:var(--mint); margin-top:0;">Viral Studio V60</h2>
             <input type="password" name="password" style="width:100%; padding:10px; margin-bottom:20px; border-radius:4px; border:1px solid var(--border); background:#000; color:white;">
-            <button type="submit" class="c-btn" style="width:100%; background:var(--mint); color:#000;">ENTER</button>
+            <button type="submit" class="c-btn" style="width:100%; background:var(--mint); color:#000;">LOGIN</button>
         </form>
     </div>
     {% else %}
@@ -134,11 +134,12 @@ HTML_TEMPLATE = """
                         <button class="c-btn" onclick="adjBlur(${i}, -5)">Blur -</button>
                         <button class="c-btn" style="background:var(--blue); color:#000;" onclick="openEnlarge(${i})">ENLARGE</button>
                         <div class="export-box">
-                            <select class="dl-select" onchange="exportFrame(${i}, this.value)">
-                                <option value="">💾 DOWNLOAD</option>
-                                <option value="png">PNG (HD)</option>
-                                <option value="jpg">JPG</option>
+                            <select class="format-select" id="format-${i}">
+                                <option value="16/9">YouTube / X (16:9)</option>
+                                <option value="9/16">TikTok / Insta (9:16)</option>
+                                <option value="1/1">Square (1:1)</option>
                             </select>
+                            <button class="dl-select" onclick="exportFrame(${i})">DOWNLOAD HD</button>
                         </div>
                     </div>
                 </div>`).join('');
@@ -155,21 +156,40 @@ HTML_TEMPLATE = """
         }
 
         function closeEnlarge() { document.getElementById('enlargeModal').style.display = 'none'; }
-
         function deleteFromBank(i) { allFrames.splice(i, 1); renderAll(); }
         function removeFromWorkspace(i) { workspaceFrames.splice(i, 1); renderAll(); }
         function addToWorkspace(allIdx) { if(workspaceFrames.length < 6) { workspaceFrames.push({ url: allFrames[allIdx], blur: 0, sticker: false, border: false, text: "NEW FRAME", color: "#FFFFFF" }); renderAll(); } }
         function updateCard(i, key, val) { workspaceFrames[i][key] = val; renderAll(); }
         function adjBlur(i, val) { workspaceFrames[i].blur = Math.max(0, workspaceFrames[i].blur + val); renderAll(); }
 
-        function exportFrame(i, format) {
-            if(!format) return;
+        function exportFrame(i) {
             const target = document.getElementById(`export-${i}`);
-            html2canvas(target, { useCORS: true, scale: 5, backgroundColor: null }).then(canvas => {
+            const format = document.getElementById(`format-${i}`).value;
+            let w = 1920, h = 1080;
+            
+            if(format === "9/16") { w = 1080; h = 1920; }
+            else if(format === "1/1") { w = 1080; h = 1080; }
+
+            // Temporary container to force dimensions for clean export
+            const exportContainer = target.cloneNode(true);
+            exportContainer.style.width = w + "px";
+            exportContainer.style.height = h + "px";
+            exportContainer.style.position = "fixed";
+            exportContainer.style.top = "-9999px";
+            document.body.appendChild(exportContainer);
+
+            html2canvas(exportContainer, { 
+                useCORS: true, 
+                scale: 1, 
+                width: w, 
+                height: h,
+                backgroundColor: "#000"
+            }).then(canvas => {
                 const link = document.createElement('a');
-                link.download = `Viral_Studio_V59_${i}.${format}`;
-                link.href = canvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : format}`);
+                link.download = `Viral_Studio_${format.replace('/','x')}_${i}.png`;
+                link.href = canvas.toDataURL("image/png");
                 link.click();
+                document.body.removeChild(exportContainer);
             });
         }
 
