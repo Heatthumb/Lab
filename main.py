@@ -2,10 +2,10 @@ import os, boto3, fal_client, time, json, threading, random
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
 
 app = Flask(__name__)
-app.secret_key = "studio_v61_adaptive"
+app.secret_key = "studio_v62_final_render"
 ACCESS_PASSWORD = "Heathumb2026"
 
-# Cloud & S3 Logic (As per instructions: video deleted after extraction)
+# Cloud & S3 Logic (Video is deleted immediately after extraction)
 os.environ["FAL_KEY"] = os.environ.get("FAL_KEY", "")
 s3 = boto3.client('s3', region_name='eu-north-1')
 BUCKET = os.environ.get("AWS_BUCKET_NAME", "")
@@ -26,20 +26,20 @@ HTML_TEMPLATE = """
         .section-title { font-size: 10px; font-weight: 900; color: var(--blue); text-transform: uppercase; margin-bottom: 10px; }
         .frame-bank { padding: 10px; display: grid; grid-template-columns: 1fr; gap: 12px; }
         .bank-item { position: relative; border-radius: 6px; overflow: hidden; border: 1px solid #333; background: #000; }
-        .bank-img { width: 100%; object-fit: contain; display: block; }
+        .bank-img { width: 100%; aspect-ratio: 16/9; object-fit: contain; display: block; }
         
+        .icon-btn { position: absolute; border: none; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; font-weight: 900; z-index: 10; display: flex; align-items: center; justify-content: center; }
+        .add-btn { top: 5px; right: 5px; background: var(--mint); color: #000; }
+        .del-btn-small { top: 5px; left: 5px; background: var(--red); color: #fff; }
+
         .workspace { flex: 1; padding: 30px; overflow-y: auto; background: #080a0d; }
         .main-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 40px; max-width: 1400px; margin: 0 auto; }
 
         .editor-card { background: var(--card); border-radius: 12px; padding: 15px; border: 1px solid var(--border); position: relative; }
+        .canvas-area { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; border-radius: 8px; }
         
-        /* ADAPTIVE CANVAS: Removes fixed 16/9 to allow phone videos to be tall */
-        .canvas-area { position: relative; width: 100%; background: #000; overflow: hidden; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-        .canvas-landscape { aspect-ratio: 16/9; }
-        .canvas-portrait { aspect-ratio: 9/16; max-height: 70vh; margin: 0 auto; }
-        
-        .bg-layer { position: absolute; width: 100%; height: 100%; object-fit: contain; z-index: 1; }
-        .subject-layer { position: absolute; width: 100%; height: 100%; object-fit: contain; z-index: 2; pointer-events: none; }
+        .bg-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: 1; }
+        .subject-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: 2; pointer-events: none; }
         .sticker-mode { filter: drop-shadow(0 0 15px rgba(255,255,255,1)) drop-shadow(0 0 5px #fff); }
 
         .drag-item { position: absolute; cursor: move; z-index: 10; user-select: none; }
@@ -47,10 +47,13 @@ HTML_TEMPLATE = """
 
         .card-controls { margin-top: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
         .c-btn { background: #242b35; border: 1px solid var(--border); color: #fff; padding: 10px; font-size: 11px; cursor: pointer; border-radius: 6px; font-weight: 700; }
-        .dl-select { grid-column: span 3; background: var(--pink); color: #fff; border: none; border-radius: 6px; padding: 12px; font-size: 11px; font-weight: 900; cursor: pointer; }
+        
+        .export-box { grid-column: span 3; display: flex; gap: 8px; margin-top: 5px; }
+        .dl-select { flex: 1; background: var(--pink); color: #fff; border: none; border-radius: 6px; padding: 12px; font-size: 11px; font-weight: 900; cursor: pointer; }
+        .format-select { flex: 1; background: #242b35; color: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 11px; font-weight: 700; cursor: pointer; }
 
         #enlargeModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: none; align-items: center; justify-content: center; }
-        #modalContainer { position: relative; background: #000; border: 1px solid #333; display: flex; align-items: center; justify-content: center; }
+        #modalContainer { width: 90vw; height: 50.62vw; position: relative; background: #000; border: 1px solid #333; }
         .close-btn { position: absolute; top: -50px; right: 0; color: white; font-weight: 900; cursor: pointer; background: var(--red); padding: 8px 20px; border-radius: 4px; }
     </style>
 </head>
@@ -58,7 +61,7 @@ HTML_TEMPLATE = """
     {% if not logged_in %}
     <div style="display:flex; height:100vh; width:100vw; align-items:center; justify-content:center;">
         <form method="POST" action="/login" style="background:var(--card); padding:40px; border-radius:12px; border:1px solid var(--border);">
-            <h2 style="color:var(--mint); margin-top:0;">Viral Studio V61</h2>
+            <h2 style="color:var(--mint); margin-top:0;">Viral Studio V62</h2>
             <input type="password" name="password" style="width:100%; padding:10px; margin-bottom:20px; border-radius:4px; border:1px solid var(--border); background:#000; color:white;">
             <button type="submit" class="c-btn" style="width:100%; background:var(--mint); color:#000;">LOGIN</button>
         </form>
@@ -67,7 +70,7 @@ HTML_TEMPLATE = """
     <div id="enlargeModal" onclick="closeEnlarge()">
         <div id="modalContainer" onclick="event.stopPropagation()">
             <div class="close-btn" onclick="closeEnlarge()">✕ CLOSE (ESC)</div>
-            <div id="modalCanvas" style="position:relative; overflow:hidden;"></div>
+            <div id="modalCanvas" style="width:100%; height:100%; position:relative; overflow:hidden;"></div>
         </div>
     </div>
 
@@ -101,93 +104,97 @@ HTML_TEMPLATE = """
             fetch(`/status/${jid}`).then(r => r.json()).then(data => {
                 if (data.status === 'completed') {
                     allFrames = data.frames;
-                    detectAndRender();
+                    workspaceFrames = [0,5,10,15,20,25].map(idx => ({ url: allFrames[idx], blur: 0, sticker: false, border: false, text: "EDIT TEXT", color: "#FFFFFF" }));
+                    renderAll();
                 } else { setTimeout(() => pollStatus(jid), 3000); }
             });
         }
 
-        function detectAndRender() {
-            const img = new Image();
-            img.src = allFrames[0];
-            img.onload = function() {
-                const isPortrait = img.height > img.width;
-                workspaceFrames = [0,5,10,15,20,25].map(idx => ({ 
-                    url: allFrames[idx], blur: 0, sticker: false, border: false, 
-                    text: "EDIT TEXT", color: "#FFFFFF", portrait: isPortrait 
-                }));
-                renderAll();
-            };
-        }
-
         function renderAll() {
             document.getElementById('frameBank').innerHTML = allFrames.map((u, i) => `
-                <div class="bank-item"><img src="${u}" class="bank-img"><button class="icon-btn add-btn" onclick="addToWorkspace(${i})">+</button></div>`).join('');
+                <div class="bank-item">
+                    <img src="${u}" class="bank-img">
+                    <button class="icon-btn del-btn-small" onclick="deleteFromBank(${i})">X</button>
+                    <button class="icon-btn add-btn" onclick="addToWorkspace(${i})">+</button>
+                </div>`).join('');
 
             document.getElementById('mainGrid').innerHTML = workspaceFrames.map((f, i) => `
                 <div class="editor-card">
-                    <div class="canvas-area ${f.portrait ? 'canvas-portrait' : 'canvas-landscape'}" id="export-${i}" style="border: ${f.border ? '6px solid '+f.color : '0px'}">
+                    <button class="card-delete" onclick="removeFromWorkspace(${i})" style="position:absolute; top:-10px; right:-10px; background:var(--red); color:white; border:none; width:28px; height:28px; border-radius:50%; font-weight:900; z-index:20;">X</button>
+                    <div class="canvas-area" id="export-${i}" style="border: ${f.border ? '6px solid '+f.color : '0px'}">
                         <img src="${f.url}" class="bg-layer" style="filter:blur(${f.blur}px)">
                         <img src="${f.url}" class="subject-layer ${f.sticker ? 'sticker-mode' : ''}">
                         <div class="drag-item overlay-text" contenteditable="true" style="color:${f.color}">${f.text}</div>
                     </div>
                     <div class="card-controls">
                         <input type="color" value="${f.color}" onchange="updateCard(${i}, 'color', this.value)" style="width:100%; height:35px; border:none; background:none;">
-                        <button class="c-btn" onclick="updateCard(${i}, 'sticker', !workspaceFrames[${i}].sticker)">Glow</button>
+                        <button class="c-btn" onclick="updateCard(${i}, 'sticker', !workspaceFrames[${i}].sticker)">Glow: ${f.sticker?'ON':'OFF'}</button>
+                        <button class="c-btn" onclick="updateCard(${i}, 'border', !workspaceFrames[${i}].border)">Border</button>
                         <button class="c-btn" onclick="adjBlur(${i}, 5)">Blur +</button>
+                        <button class="c-btn" onclick="adjBlur(${i}, -5)">Blur -</button>
                         <button class="c-btn" style="background:var(--blue); color:#000;" onclick="openEnlarge(${i})">PREVIEW</button>
-                        <button class="dl-select" onclick="exportFrame(${i})">DOWNLOAD HD (NO STRETCH)</button>
+                        <div class="export-box">
+                            <select class="format-select" id="format-${i}">
+                                <option value="16/9">YouTube / X (16:9)</option>
+                                <option value="9/16">TikTok / Insta (9:16)</option>
+                                <option value="1/1">Square (1:1)</option>
+                            </select>
+                            <button class="dl-select" onclick="exportFrameHD(${i})">DOWNLOAD HD</button>
+                        </div>
                     </div>
                 </div>`).join('');
             setupDraggables();
         }
 
+        function exportFrameHD(i) {
+            const target = document.getElementById(`export-${i}`);
+            const format = document.getElementById(`format-${i}`).value;
+            
+            // Hardcoded Export Logic to stop stretching
+            let finalW = 1920, finalH = 1080;
+            if (format === "9/16") { finalW = 1080; finalH = 1920; }
+            else if (format === "1/1") { finalW = 1080; finalH = 1080; }
+
+            // Create invisible high-res replica
+            const offscreen = target.cloneNode(true);
+            offscreen.style.width = finalW + "px";
+            offscreen.style.height = finalH + "px";
+            offscreen.style.position = "fixed";
+            offscreen.style.top = "-9999px";
+            offscreen.style.left = "-9999px";
+            document.body.appendChild(offscreen);
+
+            html2canvas(offscreen, { 
+                useCORS: true, 
+                scale: 1, 
+                backgroundColor: "#000",
+                width: finalW,
+                height: finalH
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `ViralStudio_${format.replace('/','x')}_${i}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+                document.body.removeChild(offscreen);
+            });
+        }
+
         function openEnlarge(i) {
-            const f = workspaceFrames[i];
             const original = document.getElementById(`export-${i}`);
-            const modalContainer = document.getElementById('modalContainer');
             const modalCanvas = document.getElementById('modalCanvas');
-            
-            modalCanvas.innerHTML = original.innerHTML;
-            modalCanvas.className = f.portrait ? 'canvas-portrait' : 'canvas-landscape';
-            modalCanvas.style.width = f.portrait ? "30vw" : "85vw";
-            
+            modalCanvas.innerHTML = original.innerHTML; 
+            modalCanvas.querySelectorAll('.overlay-text').forEach(t => { t.style.fontSize = "5vw"; });
+            modalCanvas.querySelectorAll('.drag-item:not(.overlay-text)').forEach(img => { img.style.width = "10vw"; });
             document.getElementById('enlargeModal').style.display = 'flex';
         }
 
         function closeEnlarge() { document.getElementById('enlargeModal').style.display = 'none'; }
-        
-        function exportFrame(i) {
-            const target = document.getElementById(`export-${i}`);
-            const f = workspaceFrames[i];
-            
-            // AI Detection for output size
-            const exportW = f.portrait ? 1080 : 1920;
-            const exportH = f.portrait ? 1920 : 1080;
-
-            html2canvas(target, { 
-                useCORS: true, 
-                scale: 2, 
-                backgroundColor: "#000",
-                width: target.offsetWidth,
-                height: target.offsetHeight
-            }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = `Viral_Studio_HD_${i}.png`;
-                link.href = canvas.toDataURL("image/png");
-                link.click();
-            });
-        }
-
-        function addToWorkspace(allIdx) {
-            const img = new Image(); img.src = allFrames[allIdx];
-            img.onload = () => {
-                workspaceFrames.push({ url: allFrames[allIdx], blur: 0, sticker: false, border: false, text: "NEW", color: "#FFFFFF", portrait: img.height > img.width });
-                renderAll();
-            };
-        }
-
+        function deleteFromBank(i) { allFrames.splice(i, 1); renderAll(); }
+        function removeFromWorkspace(i) { workspaceFrames.splice(i, 1); renderAll(); }
+        function addToWorkspace(allIdx) { if(workspaceFrames.length < 6) { workspaceFrames.push({ url: allFrames[allIdx], blur: 0, sticker: false, border: false, text: "NEW FRAME", color: "#FFFFFF" }); renderAll(); } }
         function updateCard(i, key, val) { workspaceFrames[i][key] = val; renderAll(); }
         function adjBlur(i, val) { workspaceFrames[i].blur = Math.max(0, workspaceFrames[i].blur + val); renderAll(); }
+
         function setupDraggables() {
             document.querySelectorAll('.drag-item').forEach(el => {
                 el.onmousedown = function(e) {
@@ -197,18 +204,20 @@ HTML_TEMPLATE = """
                 }
             });
         }
+
         function loadLogos() {
             const files = document.getElementById('logoInp').files;
             for(let f of files) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const img = document.createElement('img'); img.src = e.target.result;
-                    img.style.width = "60px"; img.className = "drag-item";
+                    img.style.width = "60px"; img.style.cursor = "pointer"; img.className = "drag-item";
                     img.onclick = () => addLogoToAll(e.target.result);
                     document.getElementById('logoBank').appendChild(img);
                 }; reader.readAsDataURL(f);
             }
         }
+
         function addLogoToAll(src) {
             document.querySelectorAll('.canvas-area').forEach(canvas => {
                 const img = document.createElement('img'); img.src = src; img.className = "drag-item"; img.style.width = "60px";
@@ -235,7 +244,7 @@ def process():
     s3.upload_fileobj(video, BUCKET, temp_fn, ExtraArgs={'ACL': 'public-read', 'ContentType': 'video/mp4'})
     v_url = f"https://{BUCKET}.s3.eu-north-1.amazonaws.com/{temp_fn}"
     handler = fal_client.submit("fal-ai/workflow-utilities/extract-nth-frame", {"video_url": v_url, "max_frames": 30})
-    jobs[job_id] = {'status': 'processing'}
+    jobs[job_id] = {'status': 'processing', 'indices': [0,5,10,15,20,25]}
     threading.Thread(target=background_monitor, args=(job_id, handler, temp_fn)).start()
     return jsonify({"job_id": job_id})
 
@@ -249,7 +258,7 @@ def background_monitor(jid, handler, s3_key):
 @app.route('/status/<job_id>')
 def status(job_id):
     job = jobs.get(job_id, {'status': 'not_found'})
-    return jsonify({'status': job['status'], 'frames': job.get('frames', [])})
+    return jsonify({'status': job['status'], 'frames': job.get('frames', []), 'chosen_indices': job.get('indices', [])})
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8080)
