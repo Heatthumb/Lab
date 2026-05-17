@@ -2,7 +2,7 @@ import os, boto3, fal_client, time, threading
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
 
 app = Flask(__name__)
-app.secret_key = "studio_v72_6frame_fix"
+app.secret_key = "studio_v73_final_fix"
 ACCESS_PASSWORD = "Heathumb2026"
 
 # Cloud Config
@@ -21,7 +21,6 @@ HTML_TEMPLATE = """
         :root { --mint: #00FFC2; --carbon: #0B0D10; --card: #151A21; --border: #273140; --blue: #40E0FF; --pink: #FF007A; --red: #ff4d4d; --gold: #FFD700; }
         body { background: var(--carbon); color: #E9EEF5; font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; overflow:hidden; }
         
-        /* Sidebar & Bank */
         .sidebar { width: 320px; background: var(--card); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
         .sidebar-sec { padding: 15px; border-bottom: 1px solid var(--border); }
         .section-title { font-size: 10px; font-weight: 900; color: var(--blue); text-transform: uppercase; margin-bottom: 10px; }
@@ -30,18 +29,15 @@ HTML_TEMPLATE = """
         .bank-img { width: 100%; aspect-ratio: 16/9; object-fit: contain; display: block; }
         .add-btn { position: absolute; top: 5px; right: 5px; background: var(--mint); border:none; border-radius:4px; width:24px; height:24px; cursor:pointer; font-weight:900; }
 
-        /* Workspace Grid */
         .workspace { flex: 1; padding: 30px; overflow-y: auto; background: #080a0d; }
         .main-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 40px; max-width: 1400px; margin: 0 auto; }
         .editor-card { background: var(--card); border-radius: 12px; padding: 15px; border: 1px solid var(--border); position: relative; }
         
-        /* Canvas Layers */
         .canvas-area { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
         .bg-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: 1; transition: filter 0.3s; }
         .drag-item { position: absolute; cursor: move; z-index: 10; user-select: none; }
         .overlay-text { font-weight: 900; text-transform: uppercase; white-space: nowrap; padding: 5px; text-shadow: 2px 2px 12px #000; font-size: 26px; outline: none; }
 
-        /* Controls */
         .card-controls { margin-top: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
         .c-btn { background: #242b35; border: 1px solid var(--border); color: #fff; padding: 10px; font-size: 11px; cursor: pointer; border-radius: 6px; font-weight: 700; }
         .status-msg { grid-column: span 3; font-size: 9px; color: var(--red); margin-top: 2px; height: 12px; font-weight: bold; text-align: center; }
@@ -53,7 +49,6 @@ HTML_TEMPLATE = """
         .dl-select { flex: 1; background: var(--pink); color: #fff; border: none; border-radius: 6px; padding: 12px; font-size: 11px; font-weight: 900; cursor: pointer; }
         .format-select { flex: 1; background: #242b35; color: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 11px; font-weight: 700; }
 
-        /* Preview Modal */
         #enlargeModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: none; align-items: center; justify-content: center; }
         #modalContainer { width: 85vw; height: 47.8vw; position: relative; background: #000; border: 1px solid #333; }
         .close-btn { position: absolute; top: -50px; right: 0; color: white; font-weight: 900; cursor: pointer; background: var(--red); padding: 10px 20px; border-radius: 6px; border:none; }
@@ -66,8 +61,8 @@ HTML_TEMPLATE = """
     {% if not logged_in %}
     <div style="display:flex; height:100vh; width:100vw; align-items:center; justify-content:center;">
         <form method="POST" action="/login" style="background:var(--card); padding:40px; border-radius:12px; border:1px solid var(--border);">
-            <h2 style="color:var(--mint); margin-top:0;">Viral Studio V72</h2>
-            <input type="password" name="password" placeholder="Heathumb Password..." style="width:100%; padding:10px; margin-bottom:20px; border-radius:4px; border:1px solid var(--border); background:#000; color:white;">
+            <h2 style="color:var(--mint); margin-top:0;">Viral Studio V73</h2>
+            <input type="password" name="password" placeholder="Password..." style="width:100%; padding:10px; margin-bottom:20px; border-radius:4px; border:1px solid var(--border); background:#000; color:white;">
             <button type="submit" class="c-btn" style="width:100%; background:var(--mint); color:#000;">LOGIN</button>
         </form>
     </div>
@@ -106,7 +101,6 @@ HTML_TEMPLATE = """
             fetch(`/status/${jid}`).then(r => r.json()).then(data => {
                 if (data.status === 'completed') {
                     allFrames = data.frames;
-                    // AUTO-PICK 6 FRAMES FROM THE VIDEO
                     workspaceFrames = [0,5,10,15,20,25].map(idx => ({ 
                         url: allFrames[idx], blur: 0, text: "CLICK TO EDIT", color: "#FFFFFF", status: 'idle', errorMsg: "" 
                     }));
@@ -129,7 +123,7 @@ HTML_TEMPLATE = """
                     </div>
                     <div class="card-controls">
                         <button class="ai-redraw-btn" onclick="triggerRedraw(${i})" ${f.status === 'loading' ? 'disabled' : ''}>
-                            ${f.status === 'loading' ? '<span class="loader"></span> GENERATING...' : '✨ AI REDRAW (4K)'}
+                            ${f.status === 'loading' ? '<span class="loader"></span> AI WORKING...' : '✨ AI REDRAW (4K)'}
                         </button>
                         <div class="status-msg">${f.errorMsg}</div>
                         
@@ -151,7 +145,6 @@ HTML_TEMPLATE = """
         }
 
         async function triggerRedraw(i) {
-            const format = document.getElementById(`format-${i}`).value;
             workspaceFrames[i].status = 'loading';
             workspaceFrames[i].errorMsg = "";
             renderAll();
@@ -160,7 +153,7 @@ HTML_TEMPLATE = """
                 const res = await fetch('/redraw', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ image_url: workspaceFrames[i].url, format: format })
+                    body: JSON.stringify({ image_url: workspaceFrames[i].url })
                 });
                 const data = await res.json();
                 if (data.redraw_url) {
@@ -172,7 +165,7 @@ HTML_TEMPLATE = """
                 }
             } catch (e) {
                 workspaceFrames[i].status = 'error';
-                workspaceFrames[i].errorMsg = "Connection Timeout";
+                workspaceFrames[i].errorMsg = "Server Timeout";
             }
             renderAll();
         }
@@ -181,7 +174,7 @@ HTML_TEMPLATE = """
             const target = document.getElementById(`export-${i}`);
             html2canvas(target, { useCORS: true, scale: 2 }).then(canvas => {
                 const link = document.createElement('a');
-                link.download = `ViralStudio_4K_Export.png`;
+                link.download = `ViralStudio_Export.png`;
                 link.href = canvas.toDataURL("image/png");
                 link.click();
             });
@@ -235,17 +228,16 @@ def process():
 @app.route('/redraw', methods=['POST'])
 def redraw():
     img_url = request.json.get('image_url')
-    fmt = request.json.get('format', '16/9')
-    
-    if not os.environ.get("FAL_KEY"):
-        return jsonify({"error": "FAL_KEY missing"}), 500
+    if not os.environ.get("FAL_KEY"): return jsonify({"error": "FAL_KEY missing"}), 500
 
     try:
-        # NEW: The 'outpainting' specific endpoint (Fixes the mask_url error)
-        result = fal_client.subscribe("fal-ai/flux-pro/v1/outpainting", {
+        # CORRECT ENDPOINT: This model automatically outpaints around the center
+        result = fal_client.subscribe("fal-ai/image-apps-v2/outpaint", {
             "image_url": img_url,
-            "expand_ratio": 1.5, # Smooth expansion outward
-            "prompt": f"Professional cinematic outpainting. Match lighting and extend the environment to a {fmt} frame.",
+            "expand_direction": "center", # Expands in all directions automatically
+            "expand_ratio": 1.5,
+            "prompt": "Highly detailed 4K cinematic studio background. Professional lighting, matching textures.",
+            "output_format": "png"
         })
         return jsonify({"redraw_url": result['images'][0]['url']})
     except Exception as e:
