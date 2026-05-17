@@ -1,11 +1,11 @@
-import os, boto3, fal_client, time, json, threading
+import os, boto3, fal_client, time, threading
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
 
 app = Flask(__name__)
-app.secret_key = "studio_v67_clean_layout"
+app.secret_key = "studio_v68_stable"
 ACCESS_PASSWORD = "Heathumb2026"
 
-# Cloud & S3 Logic
+# Cloud Config
 os.environ["FAL_KEY"] = os.environ.get("FAL_KEY", "")
 s3 = boto3.client('s3', region_name='eu-north-1')
 BUCKET = os.environ.get("AWS_BUCKET_NAME", "")
@@ -21,6 +21,7 @@ HTML_TEMPLATE = """
         :root { --mint: #00FFC2; --carbon: #0B0D10; --card: #151A21; --border: #273140; --blue: #40E0FF; --pink: #FF007A; --red: #ff4d4d; --gold: #FFD700; }
         body { background: var(--carbon); color: #E9EEF5; font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; overflow:hidden; }
         
+        /* Sidebar */
         .sidebar { width: 320px; background: var(--card); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
         .sidebar-sec { padding: 15px; border-bottom: 1px solid var(--border); }
         .section-title { font-size: 10px; font-weight: 900; color: var(--blue); text-transform: uppercase; margin-bottom: 10px; }
@@ -31,35 +32,27 @@ HTML_TEMPLATE = """
 
         .workspace { flex: 1; padding: 30px; overflow-y: auto; background: #080a0d; }
         .main-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 40px; max-width: 1400px; margin: 0 auto; }
-
         .editor-card { background: var(--card); border-radius: 12px; padding: 15px; border: 1px solid var(--border); position: relative; }
         
-        /* Fixed Canvas: Both layers perfectly contain to prevent zooming/overlap issues */
+        /* Canvas */
         .canvas-area { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-        
         .bg-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: 1; }
-        .subject-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: 2; pointer-events: none; }
-        .sticker-mode { filter: drop-shadow(0 0 15px rgba(255,255,255,1)) drop-shadow(0 0 5px #fff); }
-
         .drag-item { position: absolute; cursor: move; z-index: 10; user-select: none; }
         .overlay-text { font-weight: 900; text-transform: uppercase; white-space: nowrap; padding: 5px; text-shadow: 2px 2px 12px #000; font-size: 26px; outline: none; }
 
         .card-controls { margin-top: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
         .c-btn { background: #242b35; border: 1px solid var(--border); color: #fff; padding: 10px; font-size: 11px; cursor: pointer; border-radius: 6px; font-weight: 700; }
         
-        .ai-redraw-btn { grid-column: span 3; background: var(--gold); color: #000; font-weight: 900; border: none; padding: 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .ai-redraw-btn:disabled { background: #555; cursor: not-allowed; }
+        /* Button States */
+        .ai-redraw-btn { grid-column: span 3; background: var(--gold); color: #000; font-weight: 900; border: none; padding: 12px; border-radius: 6px; cursor: pointer; }
+        .ai-redraw-btn.loading { background: #444; color: #aaa; cursor: wait; }
+        .ai-redraw-btn.error { background: var(--red); color: #fff; }
 
-        /* The Export Box is BACK */
         .export-box { grid-column: span 3; display: flex; gap: 8px; margin-top: 5px; }
         .dl-select { flex: 1; background: var(--pink); color: #fff; border: none; border-radius: 6px; padding: 12px; font-size: 11px; font-weight: 900; cursor: pointer; }
-        .format-select { flex: 1; background: #242b35; color: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 11px; font-weight: 700; cursor: pointer; }
+        .format-select { flex: 1; background: #242b35; color: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 11px; font-weight: 700; }
 
-        #enlargeModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: none; align-items: center; justify-content: center; }
-        #modalContainer { width: 85vw; height: 47.8vw; position: relative; background: #000; }
-        .close-btn { position: absolute; top: -50px; right: 0; color: white; font-weight: 900; cursor: pointer; background: var(--red); padding: 10px 20px; border-radius: 6px; border:none; }
-        
-        .loader { width: 14px; height: 14px; border: 2px solid #000; border-bottom-color: transparent; border-radius: 50%; display: inline-block; animation: rotation 1s linear infinite; }
+        .loader { width: 12px; height: 12px; border: 2px solid #fff; border-bottom-color: transparent; border-radius: 50%; display: inline-block; animation: rotation 1s linear infinite; margin-right: 8px; }
         @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -67,31 +60,18 @@ HTML_TEMPLATE = """
     {% if not logged_in %}
     <div style="display:flex; height:100vh; width:100vw; align-items:center; justify-content:center;">
         <form method="POST" action="/login" style="background:var(--card); padding:40px; border-radius:12px; border:1px solid var(--border);">
-            <h2 style="color:var(--mint); margin-top:0;">Viral Studio V67</h2>
+            <h2 style="color:var(--mint); margin-top:0;">Viral Studio V68</h2>
             <input type="password" name="password" style="width:100%; padding:10px; margin-bottom:20px; border-radius:4px; border:1px solid var(--border); background:#000; color:white;">
             <button type="submit" class="c-btn" style="width:100%; background:var(--mint); color:#000;">LOGIN</button>
         </form>
     </div>
     {% else %}
-    <div id="enlargeModal">
-        <div id="modalContainer">
-            <button class="close-btn" onclick="closeEnlarge()">EXIT PREVIEW (ESC) ✕</button>
-            <div id="modalCanvas" style="width:100%; height:100%; position:relative; overflow:hidden;"></div>
-        </div>
-    </div>
-
     <div class="sidebar">
         <div class="sidebar-sec">
             <button class="c-btn" style="background:var(--mint); color:#000; width:100%;" onclick="document.getElementById('vidInp').click()">LOAD VIDEO</button>
             <input type="file" id="vidInp" style="display:none" onchange="uploadVideo()">
         </div>
-        <div class="sidebar-sec">
-            <div class="section-title">Logos</div>
-            <button class="c-btn" style="width:100%;" onclick="document.getElementById('logoInp').click()">ADD LOGOS</button>
-            <input type="file" id="logoInp" style="display:none" multiple onchange="loadLogos()">
-            <div id="logoBank" style="display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-top:10px;"></div>
-        </div>
-        <div class="section-title" style="padding:15px 15px 0 15px;">Frame Bank</div>
+        <div class="section-title" style="padding:15px;">Frame Bank</div>
         <div class="frame-bank" id="frameBank"></div>
     </div>
     <div class="workspace"><div id="mainGrid" class="main-grid"></div></div>
@@ -99,7 +79,6 @@ HTML_TEMPLATE = """
 
     <script>
         let allFrames = []; let workspaceFrames = [];
-        document.addEventListener('keydown', (e) => { if(e.key === "Escape") closeEnlarge(); });
 
         function uploadVideo() {
             const fd = new FormData(); fd.append('video', document.getElementById('vidInp').files[0]);
@@ -110,12 +89,9 @@ HTML_TEMPLATE = """
             fetch(`/status/${jid}`).then(r => r.json()).then(data => {
                 if (data.status === 'completed') {
                     allFrames = data.frames;
-                    workspaceFrames = [0,5,10,15,20,25].map(idx => ({ 
-                        url: allFrames[idx], blur: 0, sticker: false, 
-                        border: false, text: "EDIT TEXT", color: "#FFFFFF", loading: false 
-                    }));
+                    workspaceFrames = [0,5,10].map(idx => ({ url: allFrames[idx], blur: 0, text: "EDIT TEXT", color: "#FFFFFF", status: 'idle' }));
                     renderAll();
-                } else { setTimeout(() => pollStatus(jid), 3000); }
+                } else { setTimeout(() => pollStatus(jid), 2000); }
             });
         }
 
@@ -125,87 +101,64 @@ HTML_TEMPLATE = """
 
             document.getElementById('mainGrid').innerHTML = workspaceFrames.map((f, i) => `
                 <div class="editor-card">
-                    <button class="card-delete" onclick="removeFromWorkspace(${i})" style="position:absolute; top:-10px; right:-10px; background:var(--red); color:white; border:none; width:28px; height:28px; border-radius:50%; font-weight:900; z-index:20; cursor:pointer;">X</button>
                     <div class="canvas-area" id="export-${i}">
                         <img src="${f.url}" class="bg-layer" style="filter:blur(${f.blur}px);">
-                        <img src="${f.url}" class="subject-layer ${f.sticker ? 'sticker-mode' : ''}">
                         <div class="drag-item overlay-text" contenteditable="true" style="color:${f.color}">${f.text}</div>
                     </div>
                     <div class="card-controls">
-                        <button class="ai-redraw-btn" id="btn-${i}" onclick="triggerTrueRedraw(${i})" ${f.loading ? 'disabled' : ''}>
-                            ${f.loading ? '<span class="loader"></span> GENERATING OUTPAINT...' : '✨ TRUE AI REDRAW'}
+                        <button class="ai-redraw-btn ${f.status}" onclick="triggerRedraw(${i})">
+                            ${f.status === 'loading' ? '<span class="loader"></span> AI DRAWING...' : f.status === 'error' ? '❌ TRY AGAIN' : '✨ AI REDRAW (4K)'}
                         </button>
                         <input type="color" value="${f.color}" onchange="updateCard(${i}, 'color', this.value)" style="width:100%; height:35px; border:none; background:none;">
-                        <button class="c-btn" onclick="updateCard(${i}, 'sticker', !workspaceFrames[${i}].sticker)">Glow</button>
-                        <button class="c-btn" style="background:var(--blue); color:#000;" onclick="openEnlarge(${i})">PREVIEW</button>
-                        
+                        <button class="c-btn" onclick="adjBlur(${i}, 5)">Blur +</button>
                         <div class="export-box">
                             <select class="format-select" id="format-${i}">
                                 <option value="16/9">YouTube (16:9)</option>
                                 <option value="9/16">TikTok (9:16)</option>
                                 <option value="1/1">Instagram (1:1)</option>
                             </select>
-                            <button class="dl-select" onclick="exportFrame(${i})">DOWNLOAD 4K</button>
+                            <button class="dl-select" onclick="exportFrame(${i})">DOWNLOAD</button>
                         </div>
                     </div>
                 </div>`).join('');
             setupDraggables();
         }
 
-        async function triggerTrueRedraw(i) {
-            const frame = workspaceFrames[i];
-            const format = document.getElementById(`format-${i}`).value; // Read what format they want to draw for
-            updateCard(i, 'loading', true);
+        async function triggerRedraw(i) {
+            if (workspaceFrames[i].status === 'loading') return;
+            const format = document.getElementById(`format-${i}`).value;
+            updateCard(i, 'status', 'loading');
 
-            const res = await fetch('/redraw', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ image_url: frame.url, format: format })
-            });
-            const data = await res.json();
-            
-            if (data.redraw_url) {
-                // Completely overwrite the old photo with the brand new, correctly sized AI photo
-                workspaceFrames[i].url = data.redraw_url;
+            try {
+                const res = await fetch('/redraw', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ image_url: workspaceFrames[i].url, format: format })
+                });
+                const data = await res.json();
+                if (data.redraw_url) {
+                    workspaceFrames[i].url = data.redraw_url;
+                    updateCard(i, 'status', 'idle');
+                } else { throw new Error(); }
+            } catch (e) {
+                updateCard(i, 'status', 'error');
+                setTimeout(() => updateCard(i, 'status', 'idle'), 3000);
             }
-            updateCard(i, 'loading', false);
         }
 
         function exportFrame(i) {
             const target = document.getElementById(`export-${i}`);
-            const format = document.getElementById(`format-${i}`).value;
-            let finalW = 3840, finalH = 2160; 
-            if (format === "9/16") { finalW = 2160; finalH = 3840; }
-            else if (format === "1/1") { finalW = 2160; finalH = 2160; }
-
-            const offscreen = target.cloneNode(true);
-            offscreen.style.width = finalW + "px"; offscreen.style.height = finalH + "px";
-            offscreen.style.position = "fixed"; offscreen.style.top = "-9999px";
-            document.body.appendChild(offscreen);
-
-            html2canvas(offscreen, { useCORS: true, scale: 1, backgroundColor: "#000", width: finalW, height: finalH }).then(canvas => {
+            html2canvas(target, { useCORS: true, scale: 2 }).then(canvas => {
                 const link = document.createElement('a');
-                link.download = `ViralStudio_Outpaint_${format.replace('/','x')}.png`;
-                link.href = canvas.toDataURL("image/png", 1.0);
+                link.download = `ViralStudio_4K.png`;
+                link.href = canvas.toDataURL("image/png");
                 link.click();
-                document.body.removeChild(offscreen);
             });
         }
 
-        function openEnlarge(i) {
-            const original = document.getElementById(`export-${i}`);
-            const modalCanvas = document.getElementById('modalCanvas');
-            modalCanvas.innerHTML = original.innerHTML; 
-            document.getElementById('enlargeModal').style.display = 'flex';
-        }
-
-        function closeEnlarge() { document.getElementById('enlargeModal').style.display = 'none'; }
-        function removeFromWorkspace(i) { workspaceFrames.splice(i, 1); renderAll(); }
-        function addToWorkspace(allIdx) { 
-            workspaceFrames.push({ url: allFrames[allIdx], blur: 0, sticker: false, border: false, text: "NEW FRAME", color: "#FFFFFF", loading: false }); 
-            renderAll(); 
-        }
+        function addToWorkspace(allIdx) { workspaceFrames.push({ url: allFrames[allIdx], blur: 0, text: "NEW TEXT", color: "#FFFFFF", status: 'idle' }); renderAll(); }
         function updateCard(i, key, val) { workspaceFrames[i][key] = val; renderAll(); }
+        function adjBlur(i, val) { workspaceFrames[i].blur += val; renderAll(); }
         function setupDraggables() {
             document.querySelectorAll('.drag-item').forEach(el => {
                 el.onmousedown = function(e) {
@@ -214,23 +167,6 @@ HTML_TEMPLATE = """
                     document.onmouseup = () => document.onmousemove = null;
                 }
             });
-        }
-        function loadLogos() {
-            const files = document.getElementById('logoInp').files;
-            for(let f of files) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = document.createElement('img'); img.src = e.target.result;
-                    img.style.width = "60px"; img.className = "drag-item";
-                    img.onclick = () => {
-                        document.querySelectorAll('.canvas-area').forEach(c => {
-                            const clone = img.cloneNode(); clone.className = "drag-item";
-                            c.appendChild(clone);
-                        }); setupDraggables();
-                    };
-                    document.getElementById('logoBank').appendChild(img);
-                }; reader.readAsDataURL(f);
-            }
         }
     </script>
 </body>
@@ -248,10 +184,10 @@ def login():
 @app.route('/process', methods=['POST'])
 def process():
     video = request.files['video']
-    job_id = str(int(time.time())); temp_fn = f"raw_{job_id}.mp4"
-    s3.upload_fileobj(video, BUCKET, temp_fn, ExtraArgs={'ACL': 'public-read', 'ContentType': 'video/mp4'})
+    job_id = str(int(time.time())); temp_fn = f"v_{job_id}.mp4"
+    s3.upload_fileobj(video, BUCKET, temp_fn, ExtraArgs={'ACL': 'public-read'})
     v_url = f"https://{BUCKET}.s3.eu-north-1.amazonaws.com/{temp_fn}"
-    handler = fal_client.submit("fal-ai/workflow-utilities/extract-nth-frame", {"video_url": v_url, "max_frames": 30})
+    handler = fal_client.submit("fal-ai/workflow-utilities/extract-nth-frame", {"video_url": v_url, "max_frames": 24})
     jobs[job_id] = {'status': 'processing'}
     threading.Thread(target=background_monitor, args=(job_id, handler, temp_fn)).start()
     return jsonify({"job_id": job_id})
@@ -259,23 +195,16 @@ def process():
 @app.route('/redraw', methods=['POST'])
 def redraw():
     img_url = request.json.get('image_url')
-    format_ratio = request.json.get('format', '16/9')
-    
-    # Tell the AI exactly what shape it needs to draw
-    prompt_map = {
-        "16/9": "expand the background to 16:9 cinematic landscape ratio",
-        "9/16": "expand the background to 9:16 vertical ratio",
-        "1/1": "expand the background to 1:1 square ratio"
-    }
-    
-    prompt = prompt_map.get(format_ratio, "expand the background")
-
-    result = fal_client.subscribe("fal-ai/flux-pro/v1/fill", {
-        "image_url": img_url,
-        "prompt": f"{prompt}, keeping the central subject pristine and matching colors seamlessly",
-        "expand_direction": "both"
-    })
-    return jsonify({"redraw_url": result['images'][0]['url']})
+    fmt = request.json.get('format', '16/9')
+    try:
+        # Using a specialized outpainting model for speed
+        result = fal_client.subscribe("fal-ai/flux-pro/v1/fill", {
+            "image_url": img_url,
+            "prompt": f"extend background to {fmt} ratio, matching cinematic lighting",
+        })
+        return jsonify({"redraw_url": result['images'][0]['url']})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 def background_monitor(jid, handler, s3_key):
     try:
