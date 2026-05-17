@@ -2,10 +2,10 @@ import os, boto3, fal_client, time, threading
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
 
 app = Flask(__name__)
-app.secret_key = "viral_studio_v78_ab_analytics"
+app.secret_key = "studio_v79_clear_dynamic"
 ACCESS_PASSWORD = "Heathumb2026"
 
-# Cloud Config (Ensure these are set in your environment)
+# Cloud Config
 os.environ["FAL_KEY"] = os.environ.get("FAL_KEY", "")
 s3 = boto3.client('s3', region_name='eu-north-1')
 BUCKET = os.environ.get("AWS_BUCKET_NAME", "")
@@ -21,60 +21,74 @@ HTML_TEMPLATE = """
         :root { --mint: #00FFC2; --carbon: #0B0D10; --card: #151A21; --border: #273140; --blue: #40E0FF; --pink: #FF007A; --red: #ff4d4d; --gold: #FFD700; --glass: rgba(255,255,255,0.05); }
         body { background: var(--carbon); color: #E9EEF5; font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; overflow:hidden; }
         
-        /* Layout & Navigation */
-        .sidebar { width: 340px; background: var(--card); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
-        .sidebar-sec { padding: 20px; border-bottom: 1px solid var(--border); }
-        .section-title { font-size: 11px; font-weight: 900; color: var(--blue); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 15px; }
-        
-        .workspace { flex: 1; padding: 30px; overflow-y: auto; background: radial-gradient(circle at top right, #1a202c 0%, #080a0d 100%); }
-        .main-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 35px; max-width: 1400px; margin: 0 auto; }
-        
-        /* AI Performance Card */
-        .editor-card { background: var(--card); border-radius: 20px; padding: 20px; border: 1px solid var(--border); position: relative; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .editor-card:hover { border-color: var(--mint); transform: translateY(-5px); }
-        
-        /* CTR & Sentiment Badges */
-        .ctr-badge { position: absolute; top: 30px; left: 30px; background: rgba(0,0,0,0.85); border: 1px solid var(--mint); color: var(--mint); padding: 6px 14px; border-radius: 30px; font-weight: 900; font-size: 12px; z-index: 100; backdrop-filter: blur(5px); box-shadow: 0 0 15px rgba(0,255,194,0.3); }
-        .ab-tag { position: absolute; top: 30px; right: 30px; background: var(--pink); color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 900; z-index: 100; text-transform: uppercase; }
+        .sidebar { width: 320px; background: var(--card); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
+        .sidebar-sec { padding: 15px; border-bottom: 1px solid var(--border); }
+        .section-title { font-size: 10px; font-weight: 900; color: var(--blue); text-transform: uppercase; margin-bottom: 10px; }
+        .frame-bank { padding: 10px; display: grid; grid-template-columns: 1fr; gap: 12px; }
+        .bank-item { position: relative; border-radius: 6px; overflow: hidden; border: 1px solid #333; background: #000; }
+        /* Using object-fit: contain to ensure clarity over stretch */
+        .bank-img { width: 100%; aspect-ratio: 16/9; object-fit: contain; display: block; filter: brightness(0.9); }
+        .add-btn { position: absolute; top: 5px; right: 5px; background: var(--mint); border:none; border-radius:4px; width:24px; height:24px; cursor:pointer; font-weight:900; }
 
-        /* Canvas Engine */
-        .canvas-area { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; border-radius: 14px; border: 1px solid #333; }
-        .bg-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-        .drag-item { position: absolute; cursor: move; z-index: 10; user-select: none; font-weight: 900; text-transform: uppercase; text-shadow: 0 0 15px #000; outline: none; }
+        .workspace { flex: 1; padding: 30px; overflow-y: auto; background: #080a0d; }
+        .main-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 40px; max-width: 1400px; margin: 0 auto; }
+        .editor-card { background: var(--card); border-radius: 12px; padding: 15px; border: 1px solid var(--border); position: relative; }
+        
+        .canvas-area { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+        /* Clear asset handling */
+        .bg-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: 1; transition: filter 0.3s; }
+        
+        /* Drag-and-drop Text Styling */
+        .drag-item { position: absolute; cursor: move; z-index: 10; user-select: none; font-weight: 900; text-transform: uppercase; text-shadow: 2px 2px 15px #000; font-size: 28px; outline: none; padding: 5px; min-width: 50px; text-align:center; }
+        .text-placeholder { color: var(--gold); border: 2px dashed var(--gold); }
 
-        /* Multi-Variant Controls */
-        .card-controls { margin-top: 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-        .c-btn { background: var(--glass); border: 1px solid var(--border); color: #fff; padding: 12px; font-size: 11px; cursor: pointer; border-radius: 10px; font-weight: 700; transition: 0.2s; }
-        .c-btn:hover { background: var(--border); border-color: var(--blue); }
+        .card-controls { margin-top: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .c-btn { background: #242b35; border: 1px solid var(--border); color: #fff; padding: 10px; font-size: 11px; cursor: pointer; border-radius: 6px; font-weight: 700; }
+        .status-msg { grid-column: span 3; font-size: 9px; color: var(--red); margin-top: 2px; text-align: center; font-weight: bold; }
+
+        .ai-redraw-btn { grid-column: span 3; background: var(--gold); color: #000; font-weight: 900; border: none; padding: 12px; border-radius: 6px; cursor: pointer; }
+        .ai-redraw-btn:disabled { background: #444; color: #888; cursor: wait; }
+
+        .export-box { grid-column: span 3; display: flex; gap: 8px; margin-top: 5px; }
+        .dl-select { flex: 1; background: var(--pink); color: #fff; border: none; border-radius: 6px; padding: 12px; font-size: 11px; font-weight: 900; cursor: pointer; }
+        .format-select { flex: 1; background: #242b35; color: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 11px; font-weight: 700; }
+
+        /* Preview Modal: Polished for high-resolution clarity */
+        #enlargeModal { position: fixed; inset: 0; background: rgba(0,0,0,0.96); z-index: 9999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        #modalContainer { width: 85vw; height: 47.8vw; position: relative; background: #000; border: 1px solid var(--blue); box-shadow: 0 0 50px rgba(64,224,255,0.3); border-radius:12px; overflow:hidden; }
+        .close-btn { position: absolute; top: 15px; right: 15px; color: white; font-weight: 900; cursor: pointer; background: var(--red); padding: 10px 20px; border-radius: 6px; border:none; z-index: 10000; }
         
-        .ai-gen-btn { grid-column: span 3; background: linear-gradient(135deg, var(--gold) 0%, #FFA800 100%); color: #000; border: none; padding: 16px; border-radius: 10px; font-weight: 900; cursor: pointer; margin-top: 5px; box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2); }
-        .ai-gen-btn:active { transform: scale(0.98); }
-        .dl-btn { grid-column: span 2; background: var(--blue); color:#000; font-weight:900; border:none; border-radius:10px; cursor:pointer; }
-        
-        .status-msg { grid-column: span 3; font-size: 10px; color: #888; text-align: center; margin-top: 8px; font-style: italic; }
+        /* High-Res Image in Preview */
+        #modalCanvas img { object-fit: contain; }
+
+        .loader { width: 12px; height: 12px; border: 2px solid #000; border-bottom-color: transparent; border-radius: 50%; display: inline-block; animation: rotation 1s linear infinite; margin-right: 8px; }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
     {% if not logged_in %}
-    <div style="display:flex; height:100vh; width:100vw; align-items:center; justify-content:center; background: radial-gradient(circle, #1a202c 0%, #000 100%);">
-        <form method="POST" action="/login" style="background:var(--card); padding:45px; border-radius:24px; border:1px solid var(--border); width:380px; box-shadow: 0 20px 50px rgba(0,0,0,1);">
-            <h1 style="color:var(--mint); margin:0 0 8px 0; font-size:28px; letter-spacing:-1px;">VIRAL STUDIO PRO</h1>
-            <p style="color:#888; font-size:13px; margin-bottom:30px;">A/B Performance & CTR Prediction</p>
-            <input type="password" name="password" placeholder="Enter License Key..." style="width:100%; padding:16px; margin-bottom:20px; border-radius:10px; border:1px solid var(--border); background:#080a0d; color:white; box-sizing:border-box; outline:none; font-size:14px;">
-            <button type="submit" class="ai-gen-btn" style="width:100%;">BOOT SYSTEM</button>
+    <div style="display:flex; height:100vh; width:100vw; align-items:center; justify-content:center;">
+        <form method="POST" action="/login" style="background:var(--card); padding:40px; border-radius:12px; border:1px solid var(--border);">
+            <h2 style="color:var(--mint); margin-top:0;">Viral Studio V79</h2>
+            <input type="password" name="password" placeholder="Key..." style="width:100%; padding:10px; margin-bottom:20px; border-radius:4px; border:1px solid var(--border); background:#000; color:white;">
+            <button type="submit" class="c-btn" style="width:100%; background:var(--mint); color:#000;">LOGIN</button>
         </form>
     </div>
     {% else %}
+    <div id="enlargeModal">
+        <div id="modalContainer">
+            <button class="close-btn" onclick="closeEnlarge()">✕ EXIT PREVIEW</button>
+            <div id="modalCanvas" style="width:100%; height:100%; position:relative;"></div>
+        </div>
+    </div>
+
     <div class="sidebar">
         <div class="sidebar-sec">
-            <div class="section-title">Source Input</div>
-            <button class="ai-gen-btn" style="background:var(--mint); margin:0;" onclick="document.getElementById('vidInp').click()">+ IMPORT VIDEO FILE</button>
+            <button class="c-btn" style="background:var(--mint); color:#000; width:100%;" onclick="document.getElementById('vidInp').click()">LOAD VIDEO SOURCE</button>
             <input type="file" id="vidInp" style="display:none" onchange="uploadVideo()">
         </div>
-        <div class="sidebar-sec">
-            <div class="section-title">A/B Frame Library</div>
-            <div id="frameBank" style="display:grid; grid-template-columns: 1fr; gap:12px;"></div>
-        </div>
+        <div class="section-title" style="padding:15px;">Frame Bank</div>
+        <div class="frame-bank" id="frameBank"></div>
     </div>
 
     <div class="workspace">
@@ -83,8 +97,8 @@ HTML_TEMPLATE = """
     {% endif %}
 
     <script>
-        let workspaceFrames = [];
-        let allFrames = [];
+        let allFrames = []; let workspaceFrames = [];
+        document.addEventListener('keydown', (e) => { if(e.key === "Escape") closeEnlarge(); });
 
         function uploadVideo() {
             const fd = new FormData(); fd.append('video', document.getElementById('vidInp').files[0]);
@@ -95,107 +109,171 @@ HTML_TEMPLATE = """
             fetch(`/status/${jid}`).then(r => r.json()).then(data => {
                 if (data.status === 'completed') {
                     allFrames = data.frames;
-                    // Auto-load 6 unique variants for the A/B grid
-                    workspaceFrames = [0, 4, 8, 12, 16, 20].map((idx, i) => ({
-                        url: allFrames[idx], blur: 0, text: "CLICK TO EDIT", color: "#FFFFFF", status: 'idle', errorMsg: "", ctr: "Scanning...", variant: String.fromCharCode(65 + i)
+                    // Auto-load 6 diverse frames for testing
+                    workspaceFrames = [0,5,10,15,20,25].map(idx => ({ 
+                        url: allFrames[idx], blur: 0, textElements: [], status: 'idle', errorMsg: "" 
                     }));
                     renderAll();
-                    workspaceFrames.forEach((_, i) => predictCTR(i));
                 } else { setTimeout(() => pollStatus(jid), 2000); }
             });
         }
 
-        async function predictCTR(i) {
-            const res = await fetch('/predict_ctr', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ image_url: workspaceFrames[i].url })
-            });
-            const data = await res.json();
-            workspaceFrames[i].ctr = data.score;
-            renderAll();
-        }
-
-        async function triggerRedraw(i) {
-            const format = document.getElementById(`format-${i}`).value;
-            workspaceFrames[i].status = 'loading'; renderAll();
-
-            const res = await fetch('/redraw', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ image_url: workspaceFrames[i].url, format: format })
-            });
-            const data = await res.json();
-            if (data.redraw_url) {
-                workspaceFrames[i].url = data.redraw_url;
-                workspaceFrames[i].status = 'idle';
-                predictCTR(i); // Re-calculate CTR after expansion
-            } else {
-                workspaceFrames[i].status = 'error';
-                workspaceFrames[i].errorMsg = "AI Failure: Expand Logic";
-            }
-            renderAll();
-        }
-
         function renderAll() {
             if (!document.getElementById('mainGrid')) return;
-            
-            // Render Side Bank
-            document.getElementById('frameBank').innerHTML = allFrames.slice(0,10).map((u, i) => `
-                <div style="background:#000; border-radius:8px; overflow:hidden; position:relative; cursor:pointer;" onclick="addToWorkspace('${u}')">
-                    <img src="${u}" style="width:100%; opacity:0.6;">
-                    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:white; font-weight:900; font-size:20px;">+</div>
-                </div>`).join('');
+            // Clear Frame Bank
+            document.getElementById('frameBank').innerHTML = allFrames.map((u, i) => `
+                <div class="bank-item"><img src="${u}" class="bank-img"><button class="add-btn" onclick="addToWorkspace(${i})">+</button></div>`).join('');
 
-            // Render Editor Cards
+            // Workspace Grid with Clear Assets
             document.getElementById('mainGrid').innerHTML = workspaceFrames.map((f, i) => `
                 <div class="editor-card">
-                    <div class="ctr-badge">EST. CTR: ${f.ctr}</div>
-                    <div class="ab-tag">Variant ${f.variant}</div>
+                    <button onclick="removeFromWorkspace(${i})" style="position:absolute; top:-10px; right:-10px; border-radius:50%; border:none; background:red; color:white; width:24px; height:24px; cursor:pointer; font-weight:bold; z-index:20;">X</button>
                     <div class="canvas-area" id="export-${i}">
-                        <img src="${f.url}" class="bg-layer" style="filter:blur(${f.blur}px)">
-                        <div class="drag-item" contenteditable="true" style="color:${f.color}; top:25%; left:15%; font-size:36px;">${f.text}</div>
+                        <img src="${f.url}" class="bg-layer" style="filter:blur(${f.blur}px);">
+                        ${f.textElements.map((t, ti) => `
+                            <div class="drag-item ${t.isPlaceholder ? 'text-placeholder' : ''}" 
+                                 id="text-${i}-${ti}"
+                                 contenteditable="true" 
+                                 style="color:${t.color}; top:${t.top}px; left:${t.left}px;"
+                                 onfocus="handleTextFocus(${i}, ${ti})"
+                                 onblur="handleTextBlur(${i}, ${ti})">
+                                ${t.text}
+                            </div>
+                        `).join('')}
                     </div>
                     <div class="card-controls">
-                        <button class="ai-gen-btn" onclick="triggerRedraw(${i})">
-                            ${f.status === 'loading' ? 'ANALYZING VISUALS...' : '✨ AI A/B EXPANSION (4K)'}
+                        <button class="ai-redraw-btn" onclick="triggerRedraw(${i})" ${f.status === 'loading' ? 'disabled' : ''}>
+                            ${f.status === 'loading' ? '<span class="loader"></span> AI REDRAWING...' : '✨ AI A/B EXPANSION (4K)'}
                         </button>
-                        <button class="c-btn" onclick="updateBlur(${i})">GAUSSIAN +</button>
-                        <input type="color" value="${f.color}" onchange="updateColor(${i}, this.value)" style="width:100%; height:45px; border:none; background:none; cursor:pointer;">
-                        <button class="c-btn" style="color:var(--red);" onclick="workspaceFrames.splice(${i},1); renderAll();">BIN</button>
+                        <div class="status-msg">${f.errorMsg}</div>
                         
-                        <div style="grid-column: span 3; display:flex; gap:12px; margin-top:5px;">
-                            <select id="format-${i}" class="c-btn" style="flex:1;">
+                        <button class="c-btn" style="background:var(--mint); color:#000;" onclick="addTextElement(${i})">+ ADD TEXT</button>
+                        <button class="c-btn" style="background:var(--red);" onclick="deleteSelectedText(${i})">❌ DEL TEXT</button>
+                        <button class="c-btn" style="background:var(--blue); color:#000;" onclick="openEnlarge(${i})">PREVIEW 4K</button>
+                        
+                        <div class="export-box">
+                            <select class="format-select" id="format-${i}">
                                 <option value="16/9">YouTube (16:9)</option>
                                 <option value="9/16">TikTok (9:16)</option>
                             </select>
-                            <button class="dl-btn" onclick="exportImg(${i})" style="flex:2;">EXPORT TEST VARIANT</button>
+                            <button class="dl-select" onclick="exportFrame(${i})">DOWNLOAD PNG</button>
                         </div>
-                        <div class="status-msg">${f.errorMsg || 'Awaiting Performance Data...'}</div>
                     </div>
                 </div>`).join('');
             setupDraggables();
         }
 
-        function exportImg(i) {
-            html2canvas(document.getElementById(`export-${i}`), {useCORS:true, scale:3}).then(c => {
-                const a = document.createElement('a'); a.download=`Studio_Variant_${workspaceFrames[i].variant}.png`; a.href=c.toDataURL(); a.click();
+        /* DYNAMIC TEXT LOGIC */
+        let selectedText = null; // Stores {cardIdx, textIdx}
+
+        function addTextElement(i) {
+            workspaceFrames[i].textElements.push({
+                text: "TYPE HOOK HERE",
+                color: "#FFFFFF",
+                top: 50,
+                left: 50,
+                isPlaceholder: true
+            });
+            renderAll();
+        }
+
+        function handleTextFocus(i, ti) {
+            const el = workspaceFrames[i].textElements[ti];
+            if (el.isPlaceholder) {
+                const domEl = document.getElementById(`text-${i}-${ti}`);
+                domEl.innerHTML = ""; // Clear placeholder text
+                domEl.classList.remove('text-placeholder');
+                workspaceFrames[i].textElements[ti].isPlaceholder = false;
+            }
+            selectedText = {cardIdx: i, textIdx: ti};
+        }
+
+        function handleTextBlur(i, ti) {
+            const domEl = document.getElementById(`text-${i}-${ti}`);
+            workspaceFrames[i].textElements[ti].text = domEl.innerText;
+        }
+
+        function deleteSelectedText(i) {
+            if (selectedText && selectedText.cardIdx === i) {
+                workspaceFrames[i].textElements.splice(selectedText.textIdx, 1);
+                selectedText = null;
+                renderAll();
+            } else {
+                // If nothing focused, delete the last added text element
+                if (workspaceFrames[i].textElements.length > 0) {
+                    workspaceFrames[i].textElements.pop();
+                    renderAll();
+                }
+            }
+        }
+
+        async function triggerRedraw(i) {
+            const format = document.getElementById(`format-${i}`).value;
+            workspaceFrames[i].status = 'loading';
+            workspaceFrames[i].errorMsg = "";
+            renderAll();
+
+            try {
+                const res = await fetch('/redraw', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ image_url: workspaceFrames[i].url, format: format })
+                });
+                const data = await res.json();
+                if (data.redraw_url) {
+                    workspaceFrames[i].url = data.redraw_url;
+                    workspaceFrames[i].status = 'idle';
+                } else {
+                    workspaceFrames[i].status = 'error';
+                    workspaceFrames[i].errorMsg = data.error || "AI Expansion Failed";
+                }
+            } catch (e) {
+                workspaceFrames[i].status = 'error';
+                workspaceFrames[i].errorMsg = "Server Timeout";
+            }
+            renderAll();
+        }
+
+        function exportFrame(i) {
+            const target = document.getElementById(`export-${i}`);
+            // Use html2canvas to capture the clean asset + text layers
+            html2canvas(target, { useCORS: true, scale: 3, backgroundColor: "#000" }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `Studio_Variant_4K.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
             });
         }
-        function updateBlur(i) { workspaceFrames[i].blur += 5; renderAll(); }
-        function updateColor(i, val) { workspaceFrames[i].color = val; renderAll(); }
-        function addToWorkspace(url) {
-            workspaceFrames.push({ url, blur: 0, text: "NEW HOOK", color: "#FFFFFF", status: 'idle', errorMsg: "", ctr: "Scanning...", variant: "NEW" });
-            renderAll();
-            predictCTR(workspaceFrames.length - 1);
+
+        function openEnlarge(i) {
+            const originalCanvas = document.getElementById(`export-${i}`);
+            const modalCanvas = document.getElementById('modalCanvas');
+            // Clone the entire canvas area to ensure preview clarity matches
+            modalCanvas.innerHTML = originalCanvas.innerHTML;
+            document.getElementById('enlargeModal').style.display = 'flex';
         }
+
+        function closeEnlarge() { document.getElementById('enlargeModal').style.display = 'none'; }
+        function removeFromWorkspace(i) { workspaceFrames.splice(i, 1); renderAll(); }
+        function addToWorkspace(allIdx) { workspaceFrames.push({ url: allFrames[allIdx], blur: 0, textElements: [], status: 'idle', errorMsg: "" }); renderAll(); }
+        function updateCard(i, key, val) { workspaceFrames[i][key] = val; renderAll(); }
+
         function setupDraggables() {
             document.querySelectorAll('.drag-item').forEach(el => {
-                el.onmousedown = (e) => {
-                    let ox = e.clientX - el.offsetLeft, oy = e.clientY - el.offsetTop;
-                    document.onmousemove = (e) => { el.style.left=(e.clientX-ox)+'px'; el.style.top=(e.clientY-oy)+'px'; }
+                el.onmousedown = function(e) {
+                    let ox = e.clientX - el.offsetLeft; let oy = e.clientY - el.offsetTop;
+                    const cardIdx = el.id.split('-')[1];
+                    const textIdx = el.id.split('-')[2];
+                    
+                    document.onmousemove = function(e) { 
+                        el.style.left = (e.clientX - ox) + 'px'; 
+                        el.style.top = (e.clientY - oy) + 'px'; 
+                        // Update logical coordinates for redraw persistence
+                        workspaceFrames[cardIdx].textElements[textIdx].left = el.offsetLeft;
+                        workspaceFrames[cardIdx].textElements[textIdx].top = el.offsetTop;
+                    }
                     document.onmouseup = () => document.onmousemove = null;
-                };
+                }
             });
         }
     </script>
@@ -217,37 +295,37 @@ def process():
     job_id = str(int(time.time())); temp_fn = f"raw_source_{job_id}.mp4"
     s3.upload_fileobj(video, BUCKET, temp_fn, ExtraArgs={'ACL': 'public-read'})
     v_url = f"https://{BUCKET}.s3.eu-north-1.amazonaws.com/{temp_fn}"
+    # Increase quality setting if available in your extraction workflow
     handler = fal_client.submit("fal-ai/workflow-utilities/extract-nth-frame", {"video_url": v_url, "max_frames": 30})
     jobs[job_id] = {'status': 'processing'}
     threading.Thread(target=background_monitor, args=(job_id, handler, temp_fn)).start()
     return jsonify({"job_id": job_id})
 
-@app.route('/predict_ctr', methods=['POST'])
-def predict_ctr():
-    # Performance Simulation Logic
-    import random
-    # High-Performing range: 6.5% - 11.2%
-    # Low-Performing range: 2.1% - 4.5%
-    score = f"{random.uniform(3.5, 12.0):.1f}%"
-    return jsonify({"score": score})
-
 @app.route('/redraw', methods=['POST'])
 def redraw():
     img_url = request.json.get('image_url')
     fmt = request.json.get('format', '16/9')
-    # Directional Padding to force the AI to fill the A/B testing canvas
-    side_p = 512 if fmt == "16/9" else 0
+    if not os.environ.get("FAL_KEY"): return jsonify({"error": "FAL_KEY missing"}), 500
+
+    # Forced Expansion Logic (verifying V76 stability)
+    side_p = 512 if fmt != "9/16" else 0
     top_p = 512 if fmt == "9/16" else 0
+
     try:
+        # Utilize the high-resolution 'png' output format
         result = fal_client.subscribe("fal-ai/image-apps-v2/outpaint", {
             "image_url": img_url,
-            "left_padding": side_p, "right_padding": side_p,
-            "top_padding": top_p, "bottom_padding": top_p,
-            "prompt": "Highly clickable YouTube thumbnail background. Dramatic lighting, vivid colors, 4K depth of field.",
-            "enable_safety_checker": False
+            "left_padding": side_p,
+            "right_padding": side_p,
+            "top_padding": top_p,
+            "bottom_padding": top_p,
+            "prompt": f"Clear cinematic studio background, matching lighting and 4K textures for {fmt} aspect ratio.",
+            "enable_safety_checker": False,
+            "output_format": "png" 
         })
         return jsonify({"redraw_url": result['images'][0]['url']})
-    except Exception as e: return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 def background_monitor(jid, handler, s3_key):
     try:
