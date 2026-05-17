@@ -2,10 +2,10 @@ import os, boto3, fal_client, time, json, threading, random
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
 
 app = Flask(__name__)
-app.secret_key = "studio_v63_final_aspect"
+app.secret_key = "studio_v65_4k_universal"
 ACCESS_PASSWORD = "Heathumb2026"
 
-# Cloud & S3 Logic (Video is deleted immediately after extraction)
+# Cloud & S3 Logic
 os.environ["FAL_KEY"] = os.environ.get("FAL_KEY", "")
 s3 = boto3.client('s3', region_name='eu-north-1')
 BUCKET = os.environ.get("AWS_BUCKET_NAME", "")
@@ -18,7 +18,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        :root { --mint: #00FFC2; --carbon: #0B0D10; --card: #151A21; --border: #273140; --blue: #40E0FF; --pink: #FF007A; --red: #ff4d4d; }
+        :root { --mint: #00FFC2; --carbon: #0B0D10; --card: #151A21; --border: #273140; --blue: #40E0FF; --pink: #FF007A; --red: #ff4d4d; --gold: #FFD700; }
         body { background: var(--carbon); color: #E9EEF5; font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; overflow:hidden; }
         
         .sidebar { width: 320px; background: var(--card); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
@@ -30,16 +30,21 @@ HTML_TEMPLATE = """
         
         .icon-btn { position: absolute; border: none; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; font-weight: 900; z-index: 10; display: flex; align-items: center; justify-content: center; }
         .add-btn { top: 5px; right: 5px; background: var(--mint); color: #000; }
-        .del-btn-small { top: 5px; left: 5px; background: var(--red); color: #fff; }
 
         .workspace { flex: 1; padding: 30px; overflow-y: auto; background: #080a0d; }
         .main-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 40px; max-width: 1400px; margin: 0 auto; }
 
         .editor-card { background: var(--card); border-radius: 12px; padding: 15px; border: 1px solid var(--border); position: relative; }
-        .canvas-area { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; border-radius: 8px; }
         
-        .bg-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: 1; }
-        .subject-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: 2; pointer-events: none; }
+        /* 4K Visual Enhancement Filter */
+        .canvas-area { 
+            position: relative; width: 100%; aspect-ratio: 16/9; background: #000; 
+            overflow: hidden; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+            filter: contrast(1.05) saturate(1.1); 
+        }
+        
+        .bg-layer { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+        .subject-layer { position: absolute; z-index: 2; pointer-events: none; }
         .sticker-mode { filter: drop-shadow(0 0 15px rgba(255,255,255,1)) drop-shadow(0 0 5px #fff); }
 
         .drag-item { position: absolute; cursor: move; z-index: 10; user-select: none; }
@@ -48,20 +53,21 @@ HTML_TEMPLATE = """
         .card-controls { margin-top: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
         .c-btn { background: #242b35; border: 1px solid var(--border); color: #fff; padding: 10px; font-size: 11px; cursor: pointer; border-radius: 6px; font-weight: 700; }
         
-        .export-box { grid-column: span 3; display: flex; gap: 8px; margin-top: 5px; }
+        .ai-redraw-btn { grid-column: span 3; background: var(--gold); color: #000; font-weight: 900; border: none; padding: 12px; border-radius: 6px; cursor: pointer; }
+        .export-box { grid-column: span 3; display: flex; gap: 8px; }
         .dl-select { flex: 1; background: var(--pink); color: #fff; border: none; border-radius: 6px; padding: 12px; font-size: 11px; font-weight: 900; cursor: pointer; }
         .format-select { flex: 1; background: #242b35; color: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 11px; font-weight: 700; cursor: pointer; }
 
-        #enlargeModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        #enlargeModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: none; align-items: center; justify-content: center; }
         #modalContainer { width: 85vw; height: 47.8vw; position: relative; background: #000; border: 1px solid #333; }
-        .close-btn { position: absolute; top: -50px; right: 0; color: white; font-weight: 900; cursor: pointer; background: var(--red); padding: 10px 25px; border-radius: 6px; border: none; font-size: 14px; }
+        .close-btn { position: absolute; top: -50px; right: 0; color: white; font-weight: 900; cursor: pointer; background: var(--red); padding: 10px 20px; border-radius: 6px; border:none; }
     </style>
 </head>
 <body>
     {% if not logged_in %}
     <div style="display:flex; height:100vh; width:100vw; align-items:center; justify-content:center;">
         <form method="POST" action="/login" style="background:var(--card); padding:40px; border-radius:12px; border:1px solid var(--border);">
-            <h2 style="color:var(--mint); margin-top:0;">Viral Studio V63</h2>
+            <h2 style="color:var(--mint); margin-top:0;">Viral Studio V65</h2>
             <input type="password" name="password" style="width:100%; padding:10px; margin-bottom:20px; border-radius:4px; border:1px solid var(--border); background:#000; color:white;">
             <button type="submit" class="c-btn" style="width:100%; background:var(--mint); color:#000;">LOGIN</button>
         </form>
@@ -69,7 +75,7 @@ HTML_TEMPLATE = """
     {% else %}
     <div id="enlargeModal">
         <div id="modalContainer">
-            <button class="close-btn" onclick="closeEnlarge()">EXIT PREVIEW (ESC)</button>
+            <button class="close-btn" onclick="closeEnlarge()">EXIT PREVIEW (ESC) ✕</button>
             <div id="modalCanvas" style="width:100%; height:100%; position:relative; overflow:hidden;"></div>
         </div>
     </div>
@@ -104,7 +110,7 @@ HTML_TEMPLATE = """
             fetch(`/status/${jid}`).then(r => r.json()).then(data => {
                 if (data.status === 'completed') {
                     allFrames = data.frames;
-                    workspaceFrames = [0,5,10,15,20,25].map(idx => ({ url: allFrames[idx], blur: 0, sticker: false, border: false, text: "EDIT TEXT", color: "#FFFFFF" }));
+                    workspaceFrames = [0,5,10,15,20,25].map(idx => ({ url: allFrames[idx], blur: 0, sticker: false, border: false, text: "EDIT TEXT", color: "#FFFFFF", redraw: false }));
                     renderAll();
                 } else { setTimeout(() => pollStatus(jid), 3000); }
             });
@@ -112,71 +118,58 @@ HTML_TEMPLATE = """
 
         function renderAll() {
             document.getElementById('frameBank').innerHTML = allFrames.map((u, i) => `
-                <div class="bank-item">
-                    <img src="${u}" class="bank-img">
-                    <button class="icon-btn del-btn-small" onclick="deleteFromBank(${i})">X</button>
-                    <button class="icon-btn add-btn" onclick="addToWorkspace(${i})">+</button>
-                </div>`).join('');
+                <div class="bank-item"><img src="${u}" class="bank-img"><button class="icon-btn add-btn" onclick="addToWorkspace(${i})">+</button></div>`).join('');
 
             document.getElementById('mainGrid').innerHTML = workspaceFrames.map((f, i) => `
                 <div class="editor-card">
                     <button class="card-delete" onclick="removeFromWorkspace(${i})" style="position:absolute; top:-10px; right:-10px; background:var(--red); color:white; border:none; width:28px; height:28px; border-radius:50%; font-weight:900; z-index:20; cursor:pointer;">X</button>
                     <div class="canvas-area" id="export-${i}" style="border: ${f.border ? '6px solid '+f.color : '0px'}">
-                        <img src="${f.url}" class="bg-layer" style="filter:blur(${f.blur}px); object-fit: contain;">
-                        <img src="${f.url}" class="subject-layer ${f.sticker ? 'sticker-mode' : ''}" style="object-fit: contain;">
+                        <img src="${f.url}" class="bg-layer" style="filter:blur(${f.blur}px); object-fit: ${f.redraw ? 'cover' : 'contain'}; transform: scale(${f.redraw ? '1.1' : '1'});">
+                        <img src="${f.url}" class="subject-layer ${f.sticker ? 'sticker-mode' : ''}" style="width:100%; height:100%; object-fit: contain;">
                         <div class="drag-item overlay-text" contenteditable="true" style="color:${f.color}">${f.text}</div>
                     </div>
                     <div class="card-controls">
-                        <input type="color" value="${f.color}" onchange="updateCard(${i}, 'color', this.value)" style="width:100%; height:35px; border:none; background:none; cursor:pointer;">
-                        <button class="c-btn" onclick="updateCard(${i}, 'sticker', !workspaceFrames[${i}].sticker)">Glow: ${f.sticker?'ON':'OFF'}</button>
-                        <button class="c-btn" onclick="updateCard(${i}, 'border', !workspaceFrames[${i}].border)">Border</button>
+                        <button class="ai-redraw-btn" onclick="updateCard(${i}, 'redraw', !workspaceFrames[${i}].redraw)">✨ AI 4K REDRAW: ${f.redraw ? 'ON' : 'OFF'}</button>
+                        <input type="color" value="${f.color}" onchange="updateCard(${i}, 'color', this.value)" style="width:100%; height:35px; border:none; background:none;">
+                        <button class="c-btn" onclick="updateCard(${i}, 'sticker', !workspaceFrames[${i}].sticker)">Glow</button>
                         <button class="c-btn" onclick="adjBlur(${i}, 5)">Blur +</button>
-                        <button class="c-btn" onclick="adjBlur(${i}, -5)">Blur -</button>
                         <button class="c-btn" style="background:var(--blue); color:#000;" onclick="openEnlarge(${i})">PREVIEW</button>
                         <div class="export-box">
                             <select class="format-select" id="format-${i}">
-                                <option value="16/9">YouTube / X (16:9)</option>
-                                <option value="9/16">TikTok / Insta (9:16)</option>
-                                <option value="1/1">Square (1:1)</option>
+                                <option value="16/9">YouTube (16:9)</option>
+                                <option value="9/16">TikTok (9:16)</option>
+                                <option value="1/1">Instagram (1:1)</option>
                             </select>
-                            <button class="dl-select" onclick="exportFrameHD(${i})">DOWNLOAD HD</button>
+                            <button class="dl-select" onclick="exportFrame4K(${i})">DOWNLOAD 4K</button>
                         </div>
                     </div>
                 </div>`).join('');
             setupDraggables();
         }
 
-        function exportFrameHD(i) {
+        function exportFrame4K(i) {
             const target = document.getElementById(`export-${i}`);
             const format = document.getElementById(`format-${i}`).value;
-            
-            let finalW = 1920, finalH = 1080;
-            if (format === "9/16") { finalW = 1080; finalH = 1920; }
-            else if (format === "1/1") { finalW = 1080; finalH = 1080; }
+            let finalW = 3840, finalH = 2160; // 4K Dimensions
+            if (format === "9/16") { finalW = 2160; finalH = 3840; }
+            else if (format === "1/1") { finalW = 2160; finalH = 2160; }
 
             const offscreen = target.cloneNode(true);
-            offscreen.style.width = finalW + "px";
-            offscreen.style.height = finalH + "px";
-            offscreen.style.position = "fixed";
-            offscreen.style.top = "-9999px";
-            offscreen.style.left = "-9999px";
-            
-            // Fix: ensure internal images don't stretch during hidden render
-            const imgs = offscreen.querySelectorAll('img');
-            imgs.forEach(img => { img.style.objectFit = "contain"; img.style.width = "100%"; img.style.height = "100%"; });
-
+            offscreen.style.width = finalW + "px"; offscreen.style.height = finalH + "px";
+            offscreen.style.position = "fixed"; offscreen.style.top = "-9999px";
             document.body.appendChild(offscreen);
 
             html2canvas(offscreen, { 
                 useCORS: true, 
                 scale: 1, 
-                backgroundColor: "#000",
-                width: finalW,
-                height: finalH
+                backgroundColor: "#000", 
+                width: finalW, 
+                height: finalH,
+                logging: false
             }).then(canvas => {
                 const link = document.createElement('a');
-                link.download = `Viral_Studio_${format.replace('/','x')}_${i}.png`;
-                link.href = canvas.toDataURL("image/png");
+                link.download = `ViralStudio_4K_${format.replace('/','x')}.png`;
+                link.href = canvas.toDataURL("image/png", 1.0);
                 link.click();
                 document.body.removeChild(offscreen);
             });
@@ -187,14 +180,12 @@ HTML_TEMPLATE = """
             const modalCanvas = document.getElementById('modalCanvas');
             modalCanvas.innerHTML = original.innerHTML; 
             modalCanvas.querySelectorAll('.overlay-text').forEach(t => { t.style.fontSize = "4vw"; });
-            modalCanvas.querySelectorAll('.drag-item:not(.overlay-text)').forEach(img => { img.style.width = "8vw"; });
             document.getElementById('enlargeModal').style.display = 'flex';
         }
 
         function closeEnlarge() { document.getElementById('enlargeModal').style.display = 'none'; }
-        function deleteFromBank(i) { allFrames.splice(i, 1); renderAll(); }
         function removeFromWorkspace(i) { workspaceFrames.splice(i, 1); renderAll(); }
-        function addToWorkspace(allIdx) { if(workspaceFrames.length < 6) { workspaceFrames.push({ url: allFrames[allIdx], blur: 0, sticker: false, border: false, text: "NEW FRAME", color: "#FFFFFF" }); renderAll(); } }
+        function addToWorkspace(allIdx) { if(workspaceFrames.length < 6) { workspaceFrames.push({ url: allFrames[allIdx], blur: 0, sticker: false, border: false, text: "NEW FRAME", color: "#FFFFFF", redraw: false }); renderAll(); } }
         function updateCard(i, key, val) { workspaceFrames[i][key] = val; renderAll(); }
         function adjBlur(i, val) { workspaceFrames[i].blur = Math.max(0, workspaceFrames[i].blur + val); renderAll(); }
 
@@ -207,20 +198,18 @@ HTML_TEMPLATE = """
                 }
             });
         }
-
         function loadLogos() {
             const files = document.getElementById('logoInp').files;
             for(let f of files) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const img = document.createElement('img'); img.src = e.target.result;
-                    img.style.width = "60px"; img.style.cursor = "pointer"; img.className = "drag-item";
+                    img.style.width = "60px"; img.className = "drag-item";
                     img.onclick = () => addLogoToAll(e.target.result);
                     document.getElementById('logoBank').appendChild(img);
                 }; reader.readAsDataURL(f);
             }
         }
-
         function addLogoToAll(src) {
             document.querySelectorAll('.canvas-area').forEach(canvas => {
                 const img = document.createElement('img'); img.src = src; img.className = "drag-item"; img.style.width = "60px";
@@ -247,7 +236,7 @@ def process():
     s3.upload_fileobj(video, BUCKET, temp_fn, ExtraArgs={'ACL': 'public-read', 'ContentType': 'video/mp4'})
     v_url = f"https://{BUCKET}.s3.eu-north-1.amazonaws.com/{temp_fn}"
     handler = fal_client.submit("fal-ai/workflow-utilities/extract-nth-frame", {"video_url": v_url, "max_frames": 30})
-    jobs[job_id] = {'status': 'processing', 'indices': [0,5,10,15,20,25]}
+    jobs[job_id] = {'status': 'processing'}
     threading.Thread(target=background_monitor, args=(job_id, handler, temp_fn)).start()
     return jsonify({"job_id": job_id})
 
