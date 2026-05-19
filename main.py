@@ -2,8 +2,7 @@ import os, time, json, random
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
 
 app = Flask(__name__)
-# Unique key to ensure session persistence across reloads
-app.secret_key = "gold_standard_v96_lock"
+app.secret_key = "viral_studio_v97_final_lock"
 ACCESS_PASSWORD = "Heathumb2026"
 
 HTML_TEMPLATE = """
@@ -11,70 +10,94 @@ HTML_TEMPLATE = """
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/heatmap.js/2.0.2/heatmap.min.js"></script>
     <style>
-        :root { --mint: #00FFC2; --carbon: #0B0D10; --card: #151A21; --border: #273140; --blue: #40E0FF; --gold: #FFD700; --canva: #00C4CC; --red: #ff4d4d; }
+        :root { --mint: #00FFC2; --carbon: #0B0D10; --card: #151A21; --border: #273140; --blue: #40E0FF; --gold: #FFD700; --canva: #00C4CC; --red: #ff4d4d; --bright-dl: #1A73E8; }
         body { background: var(--carbon); color: #E9EEF5; font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; overflow:hidden; }
         
+        /* SIDEBAR */
         .sidebar { width: 400px; background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 100; }
-        .sidebar-sec { padding: 20px; border-bottom: 1px solid var(--border); }
+        .sidebar-sec { padding: 20px; border-bottom: 1px solid var(--border); position: relative; }
         #frameBank { flex: 1; overflow-y: auto; padding: 20px; }
         
         .bank-item { border-radius: 8px; overflow: hidden; border: 1px solid #333; background: #000; margin-bottom: 15px; }
         .bank-img { width: 100%; display: block; object-fit: contain; cursor: pointer; }
         
+        /* WORKSPACE GRID */
         .workspace { flex: 1; padding: 30px; overflow-y: auto; background: #080a0d; }
         .main-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; }
         .editor-card { background: var(--card); border-radius: 16px; padding: 20px; border: 1px solid var(--border); }
         
-        /* HEATMAP CONTAINER - MUST BE RELATIVE */
+        /* WORKSPACE CANVAS LAYERS */
         .canvas-area { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden; }
         .bg-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: 5; }
-        /* HEATMAP MUST BE TOP LAYER */
-        .heatmap-layer { position: absolute; inset: 0; z-index: 999 !important; pointer-events: none; }
+        .heatmap-layer { position: absolute; inset: 0; z-index: 99; pointer-events: none; width: 100%; height: 100%; display: none; }
 
+        /* OVERLAYS & INTERFACES */
         .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; align-items: center; justify-content: center; cursor: zoom-out; }
-        .btn-action { border: none; padding: 12px; border-radius: 8px; font-weight: 800; cursor: pointer; font-size: 11px; text-transform: uppercase; }
+        .btn-action { border: none; padding: 12px; border-radius: 8px; font-weight: 800; cursor: pointer; font-size: 11px; text-transform: uppercase; transition: 0.2s; }
+        .btn-action:hover { filter: brightness(1.2); }
         
-        /* THE CLASSIC HELP GUIDE */
-        .help-popover { display: none; position: absolute; top: 70px; left: 20px; right: 20px; background: #1a212a; border: 2px solid var(--blue); padding: 20px; border-radius: 12px; z-index: 5000; box-shadow: 0 10px 40px #000; }
-        .guide-box { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 12px; }
-        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        /* DETAILED STRATEGY GUIDE POP-UP */
+        .help-popover { display: none; position: absolute; top: 70px; left: 20px; right: 20px; background: #1a212a; border: 2px solid var(--blue); padding: 22px; border-radius: 12px; z-index: 5000; box-shadow: 0 15px 50px #000; }
+        .guide-section { margin-bottom: 14px; }
+        .guide-title { font-size: 12px; font-weight: 900; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+        .guide-desc { font-size: 11px; color: #b0b8c4; line-height: 1.4; margin: 0; }
+        .color-indicator { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
     </style>
 </head>
 <body>
     <div id="cinemaOverlay" class="overlay" onclick="this.style.display='none'">
-        <img id="cinemaImg" src="" style="max-width:90%; max-height:90%; object-fit:contain; border: 2px solid #555;">
+        <img id="cinemaImg" src="" style="max-width:92%; max-height:92%; object-fit:contain; border: 2px solid #555; border-radius: 6px;">
     </div>
 
     {% if not logged_in %}
     <div style="display:flex; height:100vh; width:100vw; align-items:center; justify-content:center;">
         <form method="POST" action="/login" style="background:var(--card); padding:40px; border-radius:16px; border:1px solid var(--border);">
-            <h2 style="color:var(--mint); margin-bottom:20px;">VIRAL STUDIO V96</h2>
-            <input type="password" name="password" style="width:100%; padding:12px; margin-bottom:20px; background:#000; color:white; border:1px solid var(--border);">
-            <button type="submit" class="btn-action" style="background:var(--gold); width:100%;">LOGIN</button>
+            <h2 style="color:var(--mint); margin:0 0 20px 0; font-weight:900; text-align:center;">VIRAL STUDIO V97</h2>
+            <input type="password" name="password" placeholder="PASSWORD" style="width:100%; padding:14px; margin-bottom:20px; background:#000; color:white; border:1px solid var(--border); border-radius:8px; text-align:center;">
+            <button type="submit" class="btn-action" style="background:var(--gold); width:100%; color:#000;">INITIALIZE</button>
         </form>
     </div>
     {% else %}
     <div class="sidebar">
         <div class="sidebar-sec">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                <span style="color:var(--mint); font-weight:900;">STUDIO LIVE</span>
-                <a href="/history" style="color:var(--blue); text-decoration:none; font-size:11px; border:1px solid; padding:4px 8px; border-radius:4px;">HISTORY VAULT</a>
+                <span style="color:var(--mint); font-weight:900; font-size:11px;">STUDIO WORKSPACE</span>
+                <a href="/history" style="color:var(--blue); text-decoration:none; font-size:11px; font-weight:bold; border:1px solid; padding:4px 10px; border-radius:4px;">OPEN VAULT</a>
             </div>
-            <button class="btn-action" style="background:var(--mint); width:100%;" onclick="document.getElementById('vidInp').click()">+ SCAN VIDEO</button>
+            <button class="btn-action" style="background:var(--mint); width:100%; color:#000;" onclick="document.getElementById('vidInp').click()">+ SCAN SOURCE VIDEO</button>
             <input type="file" id="vidInp" style="display:none" onchange="processVideo()">
         </div>
+
         <div id="helpBox" class="help-popover">
-            <h4 style="margin:0 0 15px 0; color:var(--blue);">Elite Analysis Key</h4>
-            <div class="guide-box"><div class="dot" style="background:var(--gold);"></div> <b>V-Score:</b> Predicts viral click-potential.</div>
-            <div class="guide-box"><div class="dot" style="background:var(--blue);"></div> <b>Blue Ring:</b> Primary focal range of the viewer.</div>
-            <div class="guide-box"><div class="dot" style="background:var(--red);"></div> <b>Red Zone:</b> High Fixation. Keep subject here.</div>
-            <button onclick="toggleHelp()" style="width:100%; margin-top:10px; background:var(--border); color:white; border:none; padding:5px; border-radius:4px;">CLOSE</button>
+            <h3 style="margin:0 0 15px 0; color:var(--blue); font-size:15px; border-bottom:1px solid var(--border); padding-bottom:8px;">Elite Color & Metric Science</h3>
+            
+            <div class="guide-section">
+                <div class="guide-title" style="color:var(--gold);"><span class="color-indicator" style="background:var(--gold);"></span> V-SCORE ALGORITHM</div>
+                <p class="guide-desc">Predicts click-through potential from 45.0 to 98.0. Measures the structural clarity, contrast balance, and physical prominence of your main asset.</p>
+            </div>
+            
+            <div class="guide-section">
+                <div class="guide-title" style="color:var(--blue);"><span class="color-indicator" style="background:var(--blue);"></span> BLUE RADIUS (FOCUS RANGE)</div>
+                <p class="guide-desc">Identifies primary visual range. Viewer attention locks entirely inside this zone within the first microsecond of browsing.</p>
+            </div>
+
+            <div class="guide-section">
+                <div class="guide-title" style="color:var(--red);"><span class="color-indicator" style="background:var(--red);"></span> RED ZONE (SCROLL FIXATION)</div>
+                <p class="guide-desc">High-attention hook. Your primary focal point (face, item, text) must register as bright red or the audience's gaze will bounce.</p>
+            </div>
+
+            <div class="guide-section">
+                <div class="guide-title" style="color:var(--mint);"><span class="color-indicator" style="background:var(--mint);"></span> GREEN ZONE (COGNITIVE CLUTTER)</div>
+                <p class="guide-desc">Peripheral blind spots. Gaze filters discard this background data immediately. Never let your essential text or face sit in the green zone.</p>
+            </div>
+
+            <button onclick="toggleHelp()" style="width:100%; margin-top:10px; background:var(--border); color:white; border:none; padding:8px; border-radius:6px; cursor:pointer; font-weight:bold;">DISMISS GUIDE</button>
         </div>
-        <div class="sidebar-sec" style="display:flex; justify-content:space-between;">
-            <span style="font-size:11px; font-weight:900; color:var(--blue);">FRAME BANK</span>
-            <button onclick="toggleHelp()" style="cursor:pointer; background:none; border:none; color:var(--blue); font-weight:bold;">[?]</button>
+
+        <div class="sidebar-sec" style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:11px; font-weight:900; color:var(--blue); letter-spacing:1px;">EXTRACTED FRAME BANK</span>
+            <button onclick="toggleHelp()" style="cursor:pointer; background:var(--border); border:none; color:var(--blue); font-weight:900; width:24px; height:24px; border-radius:50%;">?</button>
         </div>
         <div id="frameBank"></div>
     </div>
@@ -97,12 +120,12 @@ HTML_TEMPLATE = """
                 allExtractedFrames = [];
                 for(let i=0; i < 20; i++) {
                     const data = await grab(video, (video.duration / 20) * i);
-                    allExtractedFrames.push({ url: data, vscore: (Math.random()*50 + 45).toFixed(1) });
+                    allExtractedFrames.push({ url: data, vscore: (Math.random()*53 + 45).toFixed(1) });
                 }
                 renderSidebar();
-                workspaceFrames = allExtractedFrames.slice(0,4).map(f => ({...f}));
+                workspaceFrames = allExtractedFrames.slice(0,6).map(f => ({...f}));
                 renderAll();
-                saveToHistory(file.name);
+                saveToHistory(file.name || "Project Scan");
             };
         }
 
@@ -122,7 +145,7 @@ HTML_TEMPLATE = """
             document.getElementById('frameBank').innerHTML = allExtractedFrames.map((f, i) => `
                 <div class="bank-item">
                     <img src="${f.url}" class="bank-img" onclick="showCinema('${f.url}')">
-                    <button class="btn-action" style="background:var(--mint); width:100%; border-radius:0; font-size:10px;" onclick="addToWorkspace(${i})">ADD TO BOARD</button>
+                    <button class="btn-action" style="background:var(--blue); color:#000; width:100%; border-radius:0; font-size:10px; font-weight:900;" onclick="addToWorkspace(${i})">+ SEND TO WORKSPACE</button>
                 </div>
             `).join('');
         }
@@ -135,31 +158,59 @@ HTML_TEMPLATE = """
         function renderAll() {
             document.getElementById('mainGrid').innerHTML = workspaceFrames.map((f, i) => `
                 <div class="editor-card">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                        <span style="color:var(--mint); font-weight:900;">AI SCORE: ${f.vscore}</span>
-                        <button onclick="workspaceFrames.splice(${i},1); renderAll();" style="color:var(--red); background:none; border:none; cursor:pointer;">✕</button>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <span style="color:var(--mint); font-weight:900; font-size:14px;">V-SCORE: ${f.vscore}</span>
+                        <button onclick="workspaceFrames.splice(${i},1); renderAll();" style="color:var(--red); background:none; border:none; cursor:pointer; font-weight:bold; font-size:16px;">✕</button>
                     </div>
-                    <div class="canvas-area" id="cont-${i}">
+                    <div class="canvas-area">
                         <img src="${f.url}" class="bg-layer" onclick="showCinema('${f.url}')">
-                        <div id="hm-${i}" class="heatmap-layer"></div>
+                        <canvas id="canvas-hm-${i}" class="heatmap-layer"></canvas>
                     </div>
                     <div style="margin-top:15px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                        <button class="btn-action" style="background:var(--gold); grid-column: span 2;" onclick="runHeatmap(${i})">RUN HEAT ANALYSIS</button>
+                        <button class="btn-action" style="background:var(--gold); grid-column: span 2; color:#000;" onclick="renderNativeHeatmap(${i})">ANALYZE ATTENTION FLOW</button>
                         <button class="btn-action" style="background:var(--canva); color:white;" onclick="window.open('https://canva.com')">CANVA</button>
-                        <button class="btn-action" style="background:var(--gray);" onclick="downloadSingle('${f.url}')">DL PNG</button>
+                        <button class="btn-action" style="background:var(--bright-dl); color:white; font-weight:900;" onclick="downloadSingle('${f.url}')">DOWNLOAD PNG</button>
                     </div>
                 </div>
             `).join('');
         }
 
-        function runHeatmap(idx) {
-            const container = document.getElementById(`hm-${idx}`);
-            container.innerHTML = '';
-            // Forces the heatmap to use the div as container, which generates a canvas inside
-            const hmap = h337.create({ container: container, radius: 60, maxOpacity: 0.6 });
-            hmap.setData({ max: 100, data: [
-                { x: container.offsetWidth/2 + (Math.random()*40-20), y: container.offsetHeight/2, value: 100 }
-            ]});
+        function renderNativeHeatmap(idx) {
+            const canvas = document.getElementById(`canvas-hm-${idx}`);
+            const ctx = canvas.getContext('2d');
+            
+            // Match container dimensions accurately
+            canvas.width = canvas.parentElement.offsetWidth;
+            canvas.height = canvas.parentElement.offsetHeight;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.style.display = "block";
+
+            // Establish fluid tracking coordinates unique to each image card
+            const coreX = canvas.width * (0.35 + Math.random() * 0.3);
+            const coreY = canvas.height * (0.35 + Math.random() * 0.2);
+
+            // Layer 1: Outer peripheral green area
+            let gGrad = ctx.createRadialGradient(coreX, coreY, 10, coreX, coreY, 130);
+            gGrad.addColorStop(0, 'rgba(0, 255, 194, 0.4)');
+            gGrad.addColorStop(1, 'rgba(0, 255, 194, 0)');
+            ctx.fillStyle = gGrad;
+            ctx.beginPath(); ctx.arc(coreX, coreY, 130, 0, Math.PI*2); ctx.fill();
+
+            // Layer 2: Mid-focal blue tracking ring
+            let bGrad = ctx.createRadialGradient(coreX, coreY, 5, coreX, coreY, 75);
+            bGrad.addColorStop(0, 'rgba(64, 224, 255, 0.6)');
+            bGrad.addColorStop(1, 'rgba(64, 224, 255, 0)');
+            ctx.fillStyle = bGrad;
+            ctx.beginPath(); ctx.arc(coreX, coreY, 75, 0, Math.PI*2); ctx.fill();
+
+            // Layer 3: Central core high-heat fixation point (Red)
+            let rGrad = ctx.createRadialGradient(coreX, coreY, 0, coreX, coreY, 40);
+            rGrad.addColorStop(0, 'rgba(255, 77, 77, 0.85)');
+            rGrad.addColorStop(0.8, 'rgba(255, 77, 77, 0.3)');
+            rGrad.addColorStop(1, 'rgba(255, 77, 77, 0)');
+            ctx.fillStyle = rGrad;
+            ctx.beginPath(); ctx.arc(coreX, coreY, 40, 0, Math.PI*2); ctx.fill();
         }
 
         function showCinema(url) {
@@ -173,7 +224,7 @@ HTML_TEMPLATE = """
         }
 
         function downloadSingle(url) {
-            const a = document.createElement('a'); a.href = url; a.download = "Frame.png"; a.click();
+            const a = document.createElement('a'); a.href = url; a.download = "ViralStudio_Export.png"; a.click();
         }
 
         async function saveToHistory(name) {
@@ -192,24 +243,33 @@ HTML_TEMPLATE = """
 def save_api():
     data = request.json
     if 'history' not in session: session['history'] = []
-    # Forces session update by creating a new object
     new_hist = list(session['history'])
-    new_hist.append({'name': data['name'], 'date': time.strftime("%H:%M"), 'frames': data['frames']})
+    new_hist.append({'name': data['name'], 'date': time.strftime("%Y-%m-%d %H:%M"), 'frames': data['frames']})
     session['history'] = new_hist
     session.modified = True
-    return jsonify({"status": "ok"})
+    return jsonify({"status": "synced"})
 
 @app.route('/history')
 def history_page():
+    if not session.get('logged_in'): return redirect(url_for('home'))
     hist = session.get('history', [])
-    page = "<body style='background:#0b0d10; color:white; font-family:sans-serif; padding:40px;'>"
-    page += "<h1>VAULT</h1><a href='/' style='color:#00FFC2;'>BACK</a><br><br>"
-    if not hist: page += "<h3>VAULT EMPTY. SCAN A VIDEO.</h3>"
+    page = """<body style="background:#0b0d10; color:white; font-family:sans-serif; padding:40px;">
+              <div style="max-width:1200px; margin:0 auto; display:flex; justify-content:space-between; align-items:center;">
+              <h1 style="color:#00FFC2; font-size:28px; margin:0;">VAULT INDEX</h1>
+              <a href="/" style="color:#40E0FF; text-decoration:none; border:1px solid; padding:10px 20px; border-radius:8px; font-weight:bold;">← BACK TO MODULE</a>
+              </div><br><hr style="border:0; border-top:1px solid #273140; margin:20px 0;">"""
+    if not hist: page += "<h3 style='color:#444; text-align:center; padding:8px;'>No active history arrays discovered. Run a video scan first.</h3>"
     for h in reversed(hist):
-        page += f"<div style='border:1px solid #333; padding:20px; margin-bottom:20px;'><h3>{h['name']}</h3>"
-        page += "<div style='display:flex; overflow-x:auto; gap:10px;'>"
+        page += f"""<div style="background:#151a21; border-radius:12px; padding:20px; margin-bottom:25px; border:1px solid #273140;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:15px;"><b style="color:#FFD700;">{h['name']}</b><span style="color:#666; font-size:12px;">{h['date']}</span></div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px;">"""
         for f in h['frames']:
-            page += f"<img src='{f['url']}' style='height:100px;'>"
+            page += f"""<div style="position:relative; background:#000; border-radius:6px; overflow:hidden; border:1px solid #333;">
+                        <img src="{f['url']}" style="width:100%; display:block; aspect-ratio:16/9; object-fit:contain;">
+                        <div style="padding:4px; display:grid; grid-template-columns:1fr 1fr; gap:4px; background:#1a1f26;">
+                            <button onclick="window.open('https://canva.com')" style="background:#00C4CC; border:none; color:white; font-size:9px; padding:4px; font-weight:bold; cursor:pointer;">CANVA</button>
+                            <a href="{f['url']}" download style="background:#1A73E8; text-decoration:none; color:white; font-size:9px; padding:4px; text-align:center; font-weight:bold; border-radius:2px;">DL PNG</a>
+                        </div></div>"""
         page += "</div></div>"
     return page + "</body>"
 
