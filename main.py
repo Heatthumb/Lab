@@ -2,10 +2,10 @@ import os, time, json, random
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
 
 app = Flask(__name__)
-app.secret_key = "viral_studio_v102_workspace_vault_sync"
+app.secret_key = "viral_studio_v103_complete_telemetry_lock"
 ACCESS_PASSWORD = "Heathumb2026"
 
-# SERVER RAM BACKBONE - Keeps your vault data completely safe
+# SERVER RAM BACKBONE - Completely safe and secure
 VAULT_MEMORY = []
 
 HTML_TEMPLATE = """
@@ -13,6 +13,7 @@ HTML_TEMPLATE = """
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <title>Viral Studio V103</title>
     <style>
         :root { --mint: #00FFC2; --carbon: #0B0D10; --card: #151A21; --border: #273140; --blue: #40E0FF; --gold: #FFD700; --canva: #00C4CC; --red: #ff4d4d; --bright-dl: #1A73E8; }
         body { background: var(--carbon); color: #E9EEF5; font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; overflow:hidden; }
@@ -51,7 +52,7 @@ HTML_TEMPLATE = """
     {% if not logged_in %}
     <div style="display:flex; height:100vh; width:100vw; align-items:center; justify-content:center;">
         <form method="POST" action="/login" style="background:var(--card); padding:40px; border-radius:16px; border:1px solid var(--border);">
-            <h2 style="color:var(--mint); margin:0 0 20px 0; font-weight:900; text-align:center;">VIRAL STUDIO V102</h2>
+            <h2 style="color:var(--mint); margin:0 0 20px 0; font-weight:900; text-align:center;">VIRAL STUDIO V103</h2>
             <input type="password" name="password" placeholder="PASSWORD" style="width:100%; padding:14px; margin-bottom:20px; background:#000; color:white; border:1px solid var(--border); border-radius:8px; text-align:center;">
             <button type="submit" class="btn-action" style="background:var(--gold); width:100%; color:#000;">INITIALIZE</button>
         </form>
@@ -71,22 +72,22 @@ HTML_TEMPLATE = """
         </div>
 
         <div id="helpBox" class="help-popover">
-            <h4 style="margin:0 0 12px 0; color:var(--blue); font-size:12px; font-weight:900; border-bottom:1px solid var(--border); padding-bottom:6px; letter-spacing: 0.5px;">RETINAL METRIC SCIENCE</h4>
+            <h4 style="margin:0 0 12px 0; color:var(--blue); font-size:12px; font-weight:900; border-bottom:1px solid var(--border); padding-bottom:6px; letter-spacing: 0.5px;">RETINAL HUD SCIENTIFIC GUIDE</h4>
             <div class="guide-section">
                 <div class="guide-title" style="color:var(--gold);"><span class="color-indicator" style="background:var(--gold);"></span> V-Score Diagnostic</div>
                 <p class="guide-desc">Predicts total click-through performance by calculating graphic isolation, foreground contrast depth, and subject balance scales.</p>
             </div>
             <div class="guide-section">
-                <div class="guide-title" style="color:var(--red);"><span class="color-indicator" style="background:var(--red);"></span> Red Fixation Anchor</div>
-                <p class="guide-desc">High-attention center. Essential assets must dominate this core to capture high-velocity feed scrolling.</p>
+                <div class="guide-title" style="color:var(--red);"><span class="color-indicator" style="background:var(--red);"></span> Red Fixation Target</div>
+                <p class="guide-desc">High-attention crosshair. Core content must lock precisely within these corner brackets to instantly break fast vertical feed scrolls.</p>
             </div>
             <div class="guide-section">
-                <div class="guide-title" style="color:var(--blue);"><span class="color-indicator" style="background:var(--blue);"></span> Blue Focus Range</div>
-                <p class="guide-desc">Primary micro-moment tracking perimeter. Identifies the bounding area where user eyes fixate during the crucial opening milliseconds.</p>
+                <div class="guide-title" style="color:var(--blue);"><span class="color-indicator" style="background:var(--blue);"></span> Blue Focus Perimeter</div>
+                <p class="guide-desc">Segmented bounding framework tracking target human sightline expansions during the crucial opening split-seconds.</p>
             </div>
             <div class="guide-section">
-                <div class="guide-title" style="color:var(--mint);"><span class="color-indicator" style="background:var(--mint);"></span> Green Noise Filter</div>
-                <p class="guide-desc">Cognitive peripheral friction. Highlights secondary details or layout clutter. Too much green prominence breaks central attention flow.</p>
+                <div class="guide-title" style="color:var(--mint);"><span class="color-indicator" style="background:var(--mint);"></span> Green Noise Grid Matrix</div>
+                <p class="guide-desc">Friction mapping. Draws micro-clutter bounds. Thick dense grid intersections denote layout noise choking your focal center.</p>
             </div>
             <button onclick="toggleHelp()" style="width:100%; margin-top:8px; background:var(--border); color:#fff; border:none; padding:6px; border-radius:4px; cursor:pointer; font-weight:900; font-size:10px; letter-spacing:0.5px;">DISMISS</button>
         </div>
@@ -200,34 +201,52 @@ HTML_TEMPLATE = """
             ctx.clearRect(0, 0, canvas.width, canvas.height); canvas.style.display = "block";
 
             const isLowScore = score < 65;
-            const coreX = canvas.width * (0.35 + Math.random() * 0.3); const coreY = canvas.height * (0.35 + Math.random() * 0.2);
+            const coreX = canvas.width * (0.35 + Math.random() * 0.3); 
+            const coreY = canvas.height * (0.35 + Math.random() * 0.2);
 
-            let greenCirclesCount = 0;
+            let greenLinesCount = 0;
             if (isLowScore) {
-                greenCirclesCount = Math.floor(Math.random() * 2) + 2; 
-                for(let k = 0; k < greenCirclesCount; k++) {
-                    let gx = coreX + (Math.random() * 160 - 80); let gy = coreY + (Math.random() * 120 - 60);
-                    let gGrad = ctx.createRadialGradient(gx, gy, 10, gx, gy, 150);
-                    gGrad.addColorStop(0, 'rgba(0, 255, 194, 0.45)'); gGrad.addColorStop(1, 'rgba(0, 255, 194, 0)');
-                    ctx.fillStyle = gGrad; ctx.beginPath(); ctx.arc(gx, gy, 150, 0, Math.PI*2); ctx.fill();
+                greenLinesCount = Math.floor(Math.random() * 3) + 4;
+                ctx.strokeStyle = "rgba(0, 255, 194, 0.25)";
+                ctx.lineWidth = 1;
+                for (let g = 10; g < canvas.width; g += 35) {
+                    if (g < coreX - 100 || g > coreX + 100) {
+                        ctx.beginPath(); ctx.moveTo(g, 0); ctx.lineTo(g, canvas.height); ctx.stroke();
+                    }
+                }
+                for (let j = 10; j < canvas.height; j += 35) {
+                    if (j < coreY - 60 || j > coreY + 60) {
+                        ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
+                    }
                 }
             } else {
-                let gGrad = ctx.createRadialGradient(coreX, coreY, 10, coreX, coreY, 130);
-                gGrad.addColorStop(0, 'rgba(0, 255, 194, 0.3)'); gGrad.addColorStop(1, 'rgba(0, 255, 194, 0)');
-                ctx.fillStyle = gGrad; ctx.beginPath(); ctx.arc(coreX, coreY, 130, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = "rgba(0, 255, 194, 0.1)";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
             }
 
-            let bGrad = ctx.createRadialGradient(coreX, coreY, 5, coreX, coreY, 75);
-            bGrad.addColorStop(0, 'rgba(64, 224, 255, 0.6)'); bGrad.addColorStop(1, 'rgba(64, 224, 255, 0)');
-            ctx.fillStyle = bGrad; ctx.beginPath(); ctx.arc(coreX, coreY, 75, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = "rgba(64, 224, 255, 0.7)";
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([6, 8]);
+            ctx.beginPath(); ctx.arc(coreX, coreY, 80, 0, Math.PI * 2); ctx.stroke();
+            ctx.setLineDash([]);
 
-            let rGrad = ctx.createRadialGradient(coreX, coreY, 0, coreX, coreY, 40);
-            rGrad.addColorStop(0, 'rgba(255, 77, 77, 0.85)'); rGrad.addColorStop(0.8, 'rgba(255, 77, 77, 0.3)'); rGrad.addColorStop(1, 'rgba(255, 77, 77, 0)');
-            ctx.fillStyle = rGrad; ctx.beginPath(); ctx.arc(coreX, coreY, 40, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = "rgba(255, 77, 77, 0.9)";
+            ctx.lineWidth = 2;
+            const size = 35;
+            ctx.beginPath(); ctx.moveTo(coreX - size, coreY - size + 10); ctx.lineTo(coreX - size, coreY - size); ctx.lineTo(coreX - size + 10, coreY - size); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(coreX + size, coreY - size + 10); ctx.lineTo(coreX + size, coreY - size); ctx.lineTo(coreX + size - 10, coreY - size); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(coreX - size, coreY + size - 10); ctx.lineTo(coreX - size, coreY + size); ctx.lineTo(coreX - size + 10, coreY + size); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(coreX + size, coreY + size - 10); ctx.lineTo(coreX + size, coreY + size); ctx.lineTo(coreX + size - 10, coreY + size); ctx.stroke();
+            
+            ctx.strokeStyle = "rgba(255, 77, 77, 0.6)";
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(coreX - 8, coreY); ctx.lineTo(coreX + 8, coreY); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(coreX, coreY - 8); ctx.lineTo(coreX, coreY + 8); ctx.stroke();
 
             const textTarget = document.getElementById(`analysis-text-${idx}`);
             const containerBox = document.getElementById(`analysis-box-${idx}`);
-            textTarget.innerText = generateDynamicAnalysis(score, { greenCount: greenCirclesCount });
+            textTarget.innerText = generateDynamicAnalysis(score, { greenCount: greenLinesCount || 1 });
             containerBox.style.display = "block";
         }
 
@@ -286,7 +305,6 @@ def history_page():
         page += "<h3 style='color:#666; text-align:center; padding-top:80px;'>No active history arrays discovered. Run a video scan first.</h3>"
     
     for h in reversed(VAULT_MEMORY):
-        # Grab first two images for folder layout display parameters
         f1 = h['frames'][0]['url'] if len(h['frames']) > 0 else ""
         f2 = h['frames'][1]['url'] if len(h['frames']) > 1 else f1
         
@@ -302,27 +320,4 @@ def history_page():
                         <div style="display:flex; flex-direction:column; justify-content:center; color:#40E0FF; font-size:12px; font-weight:bold; letter-spacing:0.5px;">➔ CLICK COVERS TO VIEW EXPANDED FRAME REAL ESTATE</div>
                     </div>
                     
-                    <div id="fold-{h['id']}" style="display:none; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:15px; padding-top:15px; border-top:1px solid #273140;">"""
-        
-        for f in h['frames']:
-            page += f"""<div style="position:relative; background:#000; border-radius:6px; overflow:hidden; border:1px solid #333;">
-                        <img src="{f['url']}" style="width:100%; display:block; aspect-ratio:16/9; object-fit:contain; cursor:pointer;" onclick="event.stopPropagation(); document.getElementById('histCinemaImg').src='{f['url']}'; document.getElementById('historyCinema').style.display='flex';">
-                        <div style="padding:4px; display:grid; grid-template-columns:1fr 1fr; gap:4px; background:#1a1f26;">
-                            <button onclick="event.stopPropagation(); window.open('https://canva.com')" style="background:#00C4CC; border:none; color:white; font-size:9px; padding:4px; font-weight:bold; cursor:pointer;">CANVA</button>
-                            <a href="{f['url']}" download onclick="event.stopPropagation();" style="background:#1A73E8; text-decoration:none; color:white; font-size:9px; padding:4px; text-align:center; font-weight:bold; border-radius:2px;">DL PNG</a>
-                        </div></div>"""
-        page += "</div></div>"
-    return page + "</body>"
-
-@app.route('/')
-def home():
-    return render_template_string(HTML_TEMPLATE, logged_in=session.get('logged_in'))
-
-@app.route('/login', methods=['POST'])
-def login():
-    if request.form.get('password') == ACCESS_PASSWORD: 
-        session['logged_in'] = True
-    return redirect(url_for('home'))
-
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8080)
+                    <div id="fold-{h['id']}" style="display:none; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:15px; padding-top:15px; border-top:1px solid #273140;">
