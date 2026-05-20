@@ -320,4 +320,27 @@ def history_page():
                         <div style="display:flex; flex-direction:column; justify-content:center; color:#40E0FF; font-size:12px; font-weight:bold; letter-spacing:0.5px;">➔ CLICK COVERS TO VIEW EXPANDED FRAME REAL ESTATE</div>
                     </div>
                     
-                    <div id="fold-{h['id']}" style="display:none; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:15px; padding-top:15px; border-top:1px solid #273140;">
+                    <div id="fold-{h['id']}" style="display:none; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:15px; padding-top:15px; border-top:1px solid #273140;">"""
+        
+        for f in h['frames']:
+            page += f"""<div style="position:relative; background:#000; border-radius:6px; overflow:hidden; border:1px solid #333;">
+                        <img src="{f['url']}" style="width:100%; display:block; aspect-ratio:16/9; object-fit:contain; cursor:pointer;" onclick="event.stopPropagation(); document.getElementById('histCinemaImg').src='{f['url']}'; document.getElementById('historyCinema').style.display='flex';">
+                        <div style="padding:4px; display:grid; grid-template-columns:1fr 1fr; gap:4px; background:#1a1f26;">
+                            <button onclick="event.stopPropagation(); window.open('https://canva.com')" style="background:#00C4CC; border:none; color:white; font-size:9px; padding:4px; font-weight:bold; cursor:pointer;">CANVA</button>
+                            <a href="{f['url']}" download onclick="event.stopPropagation();" style="background:#1A73E8; text-decoration:none; color:white; font-size:9px; padding:4px; text-align:center; font-weight:bold; border-radius:2px;">DL PNG</a>
+                        </div></div>"""
+        page += "</div></div>"
+    return page + "</body>"
+
+@app.route('/')
+def home():
+    return render_template_string(HTML_TEMPLATE, logged_in=session.get('logged_in'))
+
+@app.route('/login', methods=['POST'])
+def login():
+    if request.form.get('password') == ACCESS_PASSWORD: 
+        session['logged_in'] = True
+    return redirect(url_for('home'))
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=8080)
