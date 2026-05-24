@@ -23,7 +23,7 @@ HTML_TEMPLATE = """
         
         .bank-item { border-radius: 8px; overflow: hidden; border: 1px solid #333; background: #000; margin-bottom: 15px; position: relative; }
         .bank-img { width: 100%; display: block; object-fit: contain; cursor: pointer; aspect-ratio: 16/9; background: #050505; }
-        .bank-meta { position: absolute; top: 5px; left: 5px; background: rgba(0,0,0,0.85); color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .bank-meta { position: absolute; top: 5px; left: 5px; background: rgba(0,0,0,0.75); color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
         
         .workspace { flex: 1; padding: 30px; overflow-y: auto; background: #080a0d; }
         .main-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; }
@@ -37,6 +37,9 @@ HTML_TEMPLATE = """
         .btn-action { border: none; padding: 12px; border-radius: 8px; font-weight: 800; cursor: pointer; font-size: 11px; text-transform: uppercase; transition: 0.2s; }
         .btn-action:hover { filter: brightness(1.2); }
         
+        .selector-dropdown { background: #0b0d10; color: var(--blue); border: 1px solid var(--border); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; outline: none; }
+        .selector-dropdown:focus { border-color: var(--blue); }
+
         .help-popover { display: none; position: absolute; top: 70px; left: 20px; right: 20px; background: #11161d; border: 1px solid var(--border); padding: 16px; border-radius: 8px; z-index: 5000; box-shadow: 0 10px 30px rgba(0,0,0,0.7); }
         .guide-section { margin-bottom: 10px; }
         .guide-title { font-size: 11px; font-weight: 900; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -44,10 +47,10 @@ HTML_TEMPLATE = """
         .color-indicator { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
         
         .canva-guide-box { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #3a4b61; font-size: 11.5px; color: #b4c2d3; }
-        .canva-step { margin-bottom: 8px; display: flex; flex-direction: column; gap: 3px; background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.04); }
+        .canva-step { margin-bottom: 8px; display: flex; flex-direction: column; gap: 4px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.04); }
         .canva-step-header { display: flex; align-items: center; gap: 6px; font-weight: bold; }
-        .canva-badge { background: var(--canva); color: #000; font-weight: 900; padding: 1px 5px; border-radius: 3px; font-size: 9px; text-transform: uppercase; }
-        .traffic-badge { background: var(--gold); color: #000; font-weight: 900; padding: 1px 5px; border-radius: 3px; font-size: 9px; text-transform: uppercase; }
+        .canva-badge { background: var(--canva); color: #000; font-weight: 900; padding: 2px 6px; border-radius: 3px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .traffic-badge { background: var(--gold); color: #000; font-weight: 900; padding: 2px 6px; border-radius: 3px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; }
         
         #loadingBarContainer { display: none; background: #1a222d; border-radius: 6px; height: 6px; width: 100%; margin-top: 10px; overflow: hidden; }
         #loadingBar { background: var(--mint); height: 100%; width: 0%; transition: width 0.1s ease; }
@@ -122,8 +125,7 @@ HTML_TEMPLATE = """
         let allExtractedFrames = [];
         let workspaceFrames = [];
 
-        // Content genres to dynamically test frame context
-        const contentTypes = ["Talking Head Vlog", "Gaming Walkthrough", "Product Reveal", "Text-Heavy Tutorial", "Cinematic Review"];
+        const contentTypes = ["Gaming Walkthrough", "Talking Head Vlog", "Product Reveal", "Text-Heavy Tutorial", "Cinematic Review"];
 
         async function processMedia() {
             const file = document.getElementById('imgInp').files[0];
@@ -146,7 +148,7 @@ HTML_TEMPLATE = """
                     url: data, 
                     vscore: (Math.random()*53 + 45).toFixed(1), 
                     label: "Static Image",
-                    contentType: contentTypes[Math.floor(Math.random() * contentTypes.length)]
+                    contentType: "Gaming Walkthrough"
                 });
             }
             
@@ -175,7 +177,6 @@ HTML_TEMPLATE = """
                 video.onloadedmetadata = async () => {
                     const duration = video.duration;
                     const step = duration / 20;
-                    const assignedType = contentTypes[Math.floor(Math.random() * contentTypes.length)];
                     
                     for (let i = 0; i < 20; i++) {
                         video.currentTime = step * i + (step / 2);
@@ -192,7 +193,7 @@ HTML_TEMPLATE = """
                             url: canvas.toDataURL('image/jpeg', 0.75),
                             vscore: (Math.random() * 53 + 42).toFixed(1),
                             label: `Frame ${i + 1} (${(step * i).toFixed(1)}s)`,
-                            contentType: assignedType
+                            contentType: "Gaming Walkthrough"
                         });
                         
                         document.getElementById('loadingBar').style.width = `${((i + 1) / 20) * 100}%`;
@@ -225,12 +226,25 @@ HTML_TEMPLATE = """
             renderAll();
         }
 
+        function updateType(idx, selectedValue) {
+            workspaceFrames[idx].contentType = selectedValue;
+        }
+
         function renderAll() {
-            document.getElementById('mainGrid').innerHTML = workspaceFrames.map((f, i) => `
+            document.getElementById('mainGrid').innerHTML = workspaceFrames.map((f, i) => {
+                let optionsHtml = contentTypes.map(t => 
+                    `<option value="${t}" ${f.contentType === t ? "selected" : ""}>${t}</option>`
+                ).join('');
+
+                return `
                 <div class="editor-card">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                         <span style="color:var(--mint); font-weight:900; font-size:13px; letter-spacing:0.5px;">${f.label} — V-SCORE: ${f.vscore}</span>
-                        <span style="background:rgba(64, 224, 255, 0.15); color:var(--blue); font-size:10px; padding:3px 8px; border-radius:4px; font-weight:bold;">${f.contentType} Detected</span>
+                        
+                        <select class="selector-dropdown" onchange="updateType(${i}, this.value)">
+                            ${optionsHtml}
+                        </select>
+
                         <button onclick="workspaceFrames.splice(${i},1); renderAll();" style="color:var(--red); background:none; border:none; cursor:pointer; font-weight:bold; font-size:16px;">✕</button>
                     </div>
                     <div class="canvas-area">
@@ -245,12 +259,12 @@ HTML_TEMPLATE = """
                     </div>
 
                     <div style="margin-top:15px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                        <button class="btn-action" style="background:var(--gold); grid-column: span 2; color:#000;" onclick="renderNativeHeatmap(${i}, ${f.vscore}, '${f.contentType}')">ANALYZE ATTENTION FLOW</button>
+                        <button class="btn-action" style="background:var(--gold); grid-column: span 2; color:#000;" onclick="triggerAnalysisSequence(${i}, ${f.vscore})">ANALYZE ATTENTION FLOW</button>
                         <button class="btn-action" style="background:var(--canva); color:white;" onclick="window.open('https://canva.com')">CANVA EDITOR SHORTCUT</button>
                         <button class="btn-action" style="background:var(--bright-dl); color:white; font-weight:900;" onclick="downloadSingle('${f.url}')">DOWNLOAD PNG</button>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         function generateDynamicAnalysis(score, isMobile, type) {
@@ -272,32 +286,37 @@ HTML_TEMPLATE = """
             let tips = { fix: "", traffic: "" };
             
             if (type === "Talking Head Vlog") {
-                tips.fix = "<b>Face Contrast Calibration:</b> Click your face layer. Use <b>Edit photo → Adjust</b> and bump <i>Clarity</i> by 15% and <i>Shadows</i> down by 10% to make human features pop sharply against rooms.";
-                tips.traffic = "<b>The Sightline Trick:</b> Position your eyes directly over the upper crosshair target. Viewers follow human gazes—aim your face slightly toward your key title text block to force clicks.";
+                tips.fix = "<b>Face Clarity Calibration:</b> Click face asset layer → Go to <b>Edit photo → Adjust</b>. Bump <b>Clarity</b> up by 15% and drop <b>Shadows</b> by 10% to pull features cleanly away from backdrops.";
+                tips.traffic = "<b>Gaze-Target Routing:</b> Position eyes directly along upper bracket tracks. Turn face slightly toward text block layout paths to mechanically guide feed viewer focus into titles.";
             } else if (type === "Gaming Walkthrough") {
-                tips.fix = "<b>Saturated Noise Reduction:</b> Gaming screenshots are messy. Use Canva's <b>Elements → Shapes</b> to place a black square over background details, set transparency to 35%, and push text layers forward.";
-                tips.traffic = "<b>High-Velocity Glow Hook:</b> Select your character avatar or game item. Go to <b>Edit photo → Effects → Shadows</b>, select <i>Glow</i>, pick a hot neon color, and crank size to 15 to grab browse-feed traffic.";
+                tips.fix = "<b>Background Noise Shielding:</b> Hit <b>Elements → Shapes</b>. Drop a black block over noisy game graphics. Set layer <b>Transparency</b> to 35% to give foreground titles high contrast.";
+                tips.traffic = "<b>Neon Avatar Glow Hook:</b> Tap character layer → Open <b>Edit photo → Effects → Shadows</b>. Select <b>Glow</b>, pick a vivid neon color, and scale thickness to 15 to secure feed-browsing traffic.";
             } else if (type === "Product Reveal") {
-                tips.fix = "<b>Clean Border Isolation:</b> Select your product asset. Run Canva's <b>Edit photo → BG Remover</b> to dump background trash, keeping canvas edge matrices completely clear of friction lines.";
-                tips.traffic = "<b>The Hero Scale Shift:</b> Increase the physical size of your product by 30%. Ensure it cuts directly through the blue focus perimeter lines so viewers instantly identify the item.";
+                tips.fix = "<b>Border De-Cluttering Sweep:</b> Choose target item. Select <b>Edit photo → BG Remover</b> to strip away edge visual pollution, immediately resetting perimeter tracking lines.";
+                tips.traffic = "<b>Hero Element Dimension Shift:</b> Scale up main item size by 30%. Force dimensions to clip cleanly across blue focus limits so your specific retail item maps instantly inside consumer views.";
             } else if (type === "Text-Heavy Tutorial") {
-                tips.fix = "<b>Font Shield Layout:</b> Double-click your heading box. Go to <b>Effects → Outline</b>, match outline color with your background, and thickness to 40 to preserve text readability.";
-                tips.traffic = "<b>Three-Word Cap Rule:</b> Crop headers to 3 high-impact words maximum. Scale text up until it fills 40% of the canvas workspace box to make it clickable on tiny phone viewports.";
+                tips.fix = "<b>High-Contrast Matte Bordering:</b> Double-click text box → Go to <b>Effects → Outline</b>. Choose deep contrast colors and turn outline size slider to 40 to shield letter forms.";
+                tips.traffic = "<b>Core Three-Word Trimming:</b> Limit headings to 3 fast-impact words. Expand text containers until font structures cover 40% of canvas area to lock readability on phones.";
             } else { // Cinematic Review
-                tips.fix = "<b>Atmospheric Depth Balancing:</b> Select background layer. Go to <b>Edit photo → Adjust → Blur</b> and slide to 15%. This creates instant camera depth of field, highlighting the foreground layer.";
-                tips.traffic = "<b>Teaser Crop Execution:</b> Crop your main thumbnail image closer onto an emotional action moment. Dynamic physical tension drives immediate audience curiosity traffic.";
+                tips.fix = "<b>Cinematic Layer Depth Focus:</b> Choose back canvas wallpaper layer → Go to <b>Edit photo → Adjust → Blur</b>. Set blur amount to 15% to build immediate distance dimensions behind subjects.";
+                tips.traffic = "<b>Emotional Action Boundary Crop:</b> Crop focal frame closely onto high-tension body or face expressions. Cropping tight creates deep narrative mystery variables that generate massive click traffic.";
             }
             
             return `
                 <div class="canva-step">
-                    <div class="canva-step-header"><span class="canva-badge">Canva Fix</span></div>
+                    <div class="canva-step-header"><span class="canva-badge">CANVA TOOL QUICK-FIX</span></div>
                     <div style="margin-top:2px;">${tips.fix}</div>
                 </div>
                 <div class="canva-step">
-                    <div class="canva-step-header"><span class="traffic-badge">Traffic Boost</span></div>
+                    <div class="canva-step-header"><span class="traffic-badge">TRAFFIC-BOOSTING EXECUTION</span></div>
                     <div style="margin-top:2px;">${tips.traffic}</div>
                 </div>
             `;
+        }
+
+        function triggerAnalysisSequence(idx, score) {
+            const selectedType = workspaceFrames[idx].contentType;
+            renderNativeHeatmap(idx, score, selectedType);
         }
 
         function renderNativeHeatmap(idx, score, type) {
@@ -327,7 +346,6 @@ HTML_TEMPLATE = """
                 radiusY = 85;
             }
 
-            // --- GREEN GRID MATRIX (Friction Mapping) ---
             if (isLowScore) {
                 ctx.strokeStyle = "rgba(0, 255, 194, 0.25)";
                 ctx.lineWidth = 1;
@@ -348,7 +366,6 @@ HTML_TEMPLATE = """
                 ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
             }
 
-            // --- BLUE EXPANSION RADIUS ---
             ctx.strokeStyle = "rgba(64, 224, 255, 0.7)";
             ctx.lineWidth = 1.5;
             ctx.setLineDash([6, 8]);
@@ -357,7 +374,6 @@ HTML_TEMPLATE = """
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // --- RED TARGET CORNER BRACKETS ---
             ctx.strokeStyle = "rgba(255, 77, 77, 0.9)";
             ctx.lineWidth = 2;
             const size = isMobileLayout ? 24 : 34; 
@@ -371,7 +387,6 @@ HTML_TEMPLATE = """
             ctx.beginPath(); ctx.moveTo(coreX - 8, coreY); ctx.lineTo(coreX + 8, coreY); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(coreX, coreY - 8); ctx.lineTo(coreX, coreY + 8); ctx.stroke();
 
-            // Inject the dynamic content tips
             document.getElementById(`analysis-text-${idx}`).innerText = generateDynamicAnalysis(score, isMobileLayout, type);
             document.getElementById(`canva-guide-${idx}`).innerHTML = getContextualTips(type, score);
             document.getElementById(`analysis-box-${idx}`).style.display = "block";
