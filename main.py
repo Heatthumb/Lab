@@ -42,6 +42,10 @@ HTML_TEMPLATE = """
         .guide-title { font-size: 11px; font-weight: 900; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
         .guide-desc { font-size: 11px; color: #a2acba; line-height: 1.35; margin: 0; }
         .color-indicator { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        
+        .canva-guide-box { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #3a4b61; font-size: 11px; color: #b4c2d3; }
+        .canva-step { margin-bottom: 6px; display: flex; align-items: flex-start; gap: 6px; }
+        .canva-badge { background: var(--canva); color: #000; font-weight: 900; padding: 1px 5px; border-radius: 3px; font-size: 9px; text-transform: uppercase; }
     </style>
 </head>
 <body>
@@ -75,7 +79,7 @@ HTML_TEMPLATE = """
             <h4 style="margin:0 0 12px 0; color:var(--blue); font-size:12px; font-weight:900; border-bottom:1px solid var(--border); padding-bottom:6px; letter-spacing: 0.5px;">RETINAL HUD SCIENTIFIC GUIDE</h4>
             <div class="guide-section">
                 <div class="guide-title" style="color:var(--gold);"><span class="color-indicator" style="background:var(--gold);"></span> V-Score Diagnostic</div>
-                <p class="guide-desc">Predicts total click-through performance by calculating graphic isolation, foreground contrast depth, and subject balance scales.</p>
+                <p class="guide-desc">Predicts click-through performance based on element grouping and tracking visibility metrics.</p>
             </div>
             <div class="guide-section">
                 <div class="guide-title" style="color:var(--red);"><span class="color-indicator" style="background:var(--red);"></span> Red Fixation Target</div>
@@ -83,11 +87,11 @@ HTML_TEMPLATE = """
             </div>
             <div class="guide-section">
                 <div class="guide-title" style="color:var(--blue);"><span class="color-indicator" style="background:var(--blue);"></span> Blue Focus Perimeter</div>
-                <p class="guide-desc">Segmented bounding framework tracking target human sightline expansions over time.</p>
+                <p class="guide-desc">Segmented bounding framework tracking target human sightline expansions.</p>
             </div>
             <div class="guide-section">
                 <div class="guide-title" style="color:var(--mint);"><span class="color-indicator" style="background:var(--mint);"></span> Green Noise Grid Matrix</div>
-                <p class="guide-desc">Friction mapping. Appears ONLY on chaotic layouts scoring below 65 to highlight visual crowding.</p>
+                <p class="guide-desc">Appears ONLY on chaotic layouts scoring below 65 to show where visual elements are crowded.</p>
             </div>
             <button onclick="toggleHelp()" style="width:100%; margin-top:8px; background:var(--border); color:#fff; border:none; padding:6px; border-radius:4px; cursor:pointer; font-weight:900; font-size:10px; letter-spacing:0.5px;">DISMISS</button>
         </div>
@@ -115,7 +119,6 @@ HTML_TEMPLATE = """
             allExtractedFrames = [];
             
             if (file.type.startsWith('video/')) {
-                // If a video file is added, grab its initial visual baseline layout framework
                 const data = await extractVideoFrame(file);
                 allExtractedFrames.push({ url: data, vscore: (Math.random()*53 + 45).toFixed(1) });
             } else {
@@ -142,9 +145,7 @@ HTML_TEMPLATE = """
                 const video = document.createElement('video');
                 video.src = URL.createObjectURL(file);
                 video.muted = true; video.playsInline = true;
-                video.onloadeddata = () => {
-                    video.currentTime = 0.1;
-                };
+                video.onloadeddata = () => { video.currentTime = 0.1; };
                 video.onseeked = () => {
                     const canvas = document.createElement('canvas');
                     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
@@ -181,36 +182,55 @@ HTML_TEMPLATE = """
                         <canvas id="canvas-hm-${i}" class="heatmap-layer"></canvas>
                     </div>
                     
-                    <div id="analysis-box-${i}" style="display:none; margin-top:15px; background:rgba(0,0,0,0.6); padding:12px; border-radius:8px; font-size:12px; border-left:3px solid var(--gold); line-height:1.4; color:#E9EEF5;">
-                        <b style="color:var(--gold);">AI RETINAL ANALYSIS:</b> <span id="analysis-text-${i}"></span>
+                    <div id="analysis-box-${i}" style="display:none; margin-top:15px; background:rgba(0,0,0,0.85); padding:16px; border-radius:8px; font-size:12px; border-left:3px solid var(--gold); line-height:1.4; color:#E9EEF5;">
+                        <b style="color:var(--gold); font-size:13px; display:block; margin-bottom:6px;">LOG DIAGNOSTIC EVALUATION:</b>
+                        <span id="analysis-text-${i}"></span>
+                        <div id="canva-guide-${i}" class="canva-guide-box"></div>
                     </div>
 
                     <div style="margin-top:15px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                         <button class="btn-action" style="background:var(--gold); grid-column: span 2; color:#000;" onclick="renderNativeHeatmap(${i}, ${f.vscore})">ANALYZE ATTENTION FLOW</button>
-                        <button class="btn-action" style="background:var(--canva); color:white;" onclick="window.open('https://canva.com')">CANVA</button>
+                        <button class="btn-action" style="background:var(--canva); color:white;" onclick="window.open('https://canva.com')">CANVA EDITOR shortcut</button>
                         <button class="btn-action" style="background:var(--bright-dl); color:white; font-weight:900;" onclick="downloadSingle('${f.url}')">DOWNLOAD PNG</button>
                     </div>
                 </div>
             `).join('');
         }
 
-        function generateDynamicAnalysis(score, elementsTracked, isMobile) {
-            const platformText = isMobile ? "Short-form mobile feed mechanics applied. Vertical compression is active." : "Standard widescreen distribution calculations completed.";
-            
-            const highOpeners = ["Magnificent spatial formatting mapped.", "Elite asset arrangement recognized.", "Incredible subject prominence verified."];
-            const highMids = ["The primary element flawlessly captures your red fixation core", "The layout structure directs human attention pathways smoothly into position"];
-            const highEnds = ["inside the primary viewport zone.", "with minimal gaze friction noted across peripheral margins."];
-            
-            const lowOpeners = ["Shattered visual balance arrays calculated.", "Critical composition layout discovered.", "Highly decentralized tracking footprint registered."];
-            const lowMids = [`Heavy prominence of expanding clutter pixels (${elementsTracked.greenCount} units calculated) causes structural decay`, "No clean eye-tracking fixation anchor could lock efficiently inside the central boundary lines"];
-            const lowEnds = [". Reposition main graphic focus away from edge lines immediately.", ". Flatten background noise to drop programmatic bounce rates."];
-
-            const select = (arr) => arr[Math.floor(Math.random() * arr.length)];
-            
+        function generateDynamicAnalysis(score, isMobile) {
             if (score >= 65) {
-                return `${platformText} ${select(highOpeners)} ${select(highMids)} ${select(highEnds)}`;
+                return isMobile 
+                    ? "Mobile 9:16 vertical pillar alignment verified. Subjects are grouped naturally inside the optimal scrolling eye-path. Spatial layout formatting is balanced."
+                    : "Widescreen 16:9 canvas distribution parsed. Focal balance checks out safely across horizontal coordinate tracks. Structural mapping complete.";
             } else {
-                return `${platformText} ${select(lowOpeners)} ${select(lowMids)} ${select(lowEnds)}`;
+                return isMobile
+                    ? "Visual collision tracking alert. Critical mobile framing degradation observed. Visual elements are conflicting near the margins, clouding focus away from the center line."
+                    : "Composition imbalance parsed. The primary subject lacks clear contrast separation against background detail fields, causing tracking coordinates to split away.";
+            }
+        }
+
+        function getCanvaInstructions(score, isMobile) {
+            if (score >= 65) {
+                return `
+                    <b style="color:var(--mint); display:block; margin-bottom:6px;">✓ OPTIMIZATION NOT MANDATORY (PASSING):</b>
+                    <div class="canva-step"><span class="canva-badge">Tip</span> Layout is safe. If you wish to protect edge-safety text boundaries further, use Canva's <b>File → View settings → Show print bleed</b> reference lines.</div>
+                `;
+            }
+
+            if (isMobile) {
+                return `
+                    <b style="color:var(--canva); display:block; margin-bottom:6px;">🛠️ CANVA FIXES FOR VERTICAL PHONE LAYOUT:</b>
+                    <div class="canva-step"><span class="canva-badge">Step 1</span> Select your background element. Click <b>Edit photo → Adjust</b>, look for the <b>Select Area</b> dropdown and change it to <b>Background</b>. Drop the <b>Brightness</b> down by 15-20% to isolate your subject.</div>
+                    <div class="canva-step"><span class="canva-badge">Step 2</span> Double-click your text boxes. Go to the text toolbar, click <b>Effects → Lift</b> or <b>Outline</b> (set intensity to 50) to instantly lift the characters off crowded background areas.</div>
+                    <div class="canva-step"><span class="canva-badge">Step 3</span> Group your main text and subject, then use the <b>Position → Align Elements</b> panel to snap them cleanly to the center vertical pillar. Avoid placing important details within the top or bottom 15% where native app overlays live.</div>
+                `;
+            } else {
+                return `
+                    <b style="color:var(--canva); display:block; margin-bottom:6px;">🛠️ CANVA FIXES FOR WIDESCREEN IMAGES:</b>
+                    <div class="canva-step"><span class="canva-badge">Step 1</span> Click your main subject layer. Head to <b>Edit photo → Effects</b> and apply a subtle <b>Shadows (Glow or Drop)</b> to build depth separation out of the image canvas.</div>
+                    <div class="canva-step"><span class="canva-badge">Step 2</span> Go to <b>Elements</b>, type 'Blur Gradient', and place a dark gradient panel directly underneath your text headers. Turn down the layer opacity to 40% using the transparency slider to stop title masking.</div>
+                    <div class="canva-step"><span class="canva-badge">Step 3</span> Tap <b>Position → Layers</b>. Ensure secondary clutter items are sent to the back, or use the <b>Edit photo → Adjust → Blur</b> brush at 25% strength on the background to draw sightlines strictly forward.</div>
+                `;
             }
         }
 
@@ -225,33 +245,26 @@ HTML_TEMPLATE = """
             canvas.style.display = "block";
 
             const isLowScore = score < 65;
-            
-            // 🔍 AUTO-DETECT ASPECT RATIO: Is this a vertical phone framework or a normal widescreen picture?
             const isMobileLayout = imgElement.naturalHeight > imgElement.naturalWidth;
 
             let coreX, coreY, radiusX, radiusY;
 
             if (isMobileLayout) {
-                // Phone Mode Parameters: Strict alignment inside the narrow horizontal pillar
                 coreX = canvas.width * 0.5; 
-                coreY = canvas.height * (0.38 + Math.random() * 0.08); // Placed right where scrolling thumbs stop
+                coreY = canvas.height * (0.38 + Math.random() * 0.08);
                 radiusX = 55;  
-                radiusY = 95;  // Extended vertical scanning range
+                radiusY = 95;  
             } else {
-                // Widescreen Mode Parameters: Sweeping horizontal boundaries
                 coreX = canvas.width * (0.38 + Math.random() * 0.24); 
                 coreY = canvas.height * (0.38 + Math.random() * 0.18);
                 radiusX = 85;
                 radiusY = 85;
             }
 
-            // --- FRICTION MAPPING MATRIX (GREEN GRID) ---
-            let greenLinesCount = 0;
+            // --- GREEN GRID MATRIX (Visual Friction) ---
             if (isLowScore) {
-                greenLinesCount = Math.floor(Math.random() * 3) + 4;
                 ctx.strokeStyle = "rgba(0, 255, 194, 0.25)";
                 ctx.lineWidth = 1;
-                
                 let step = isMobileLayout ? 24 : 36; 
                 for (let g = 10; g < canvas.width; g += step) {
                     if (g < coreX - 65 || g > coreX + 65) {
@@ -264,13 +277,12 @@ HTML_TEMPLATE = """
                     }
                 }
             } else {
-                // High Score / Clean Background: No Green Noise Grid is rendered
                 ctx.strokeStyle = "rgba(0, 255, 194, 0.08)";
                 ctx.lineWidth = 1;
                 ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
             }
 
-            // --- BLUE EXPANSION PERIMETER ---
+            // --- BLUE EXPANSION RADIUS ---
             ctx.strokeStyle = "rgba(64, 224, 255, 0.7)";
             ctx.lineWidth = 1.5;
             ctx.setLineDash([6, 8]);
@@ -279,7 +291,7 @@ HTML_TEMPLATE = """
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // --- RED TARGET TRACKING BRACKETS ---
+            // --- RED TARGET CORNER BRACKETS ---
             ctx.strokeStyle = "rgba(255, 77, 77, 0.9)";
             ctx.lineWidth = 2;
             const size = isMobileLayout ? 24 : 34; 
@@ -293,10 +305,10 @@ HTML_TEMPLATE = """
             ctx.beginPath(); ctx.moveTo(coreX - 8, coreY); ctx.lineTo(coreX + 8, coreY); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(coreX, coreY - 8); ctx.lineTo(coreX, coreY + 8); ctx.stroke();
 
-            const textTarget = document.getElementById(`analysis-text-${idx}`);
-            const containerBox = document.getElementById(`analysis-box-${idx}`);
-            textTarget.innerText = generateDynamicAnalysis(score, { greenCount: greenLinesCount || 1 }, isMobileLayout);
-            containerBox.style.display = "block";
+            // Populate text and Canva checklist step-by-step
+            document.getElementById(`analysis-text-${idx}`).innerText = generateDynamicAnalysis(score, isMobileLayout);
+            document.getElementById(`canva-guide-${idx}`).innerHTML = getCanvaInstructions(score, isMobileLayout);
+            document.getElementById(`analysis-box-${idx}`).style.display = "block";
         }
 
         function showCinema(url) {
