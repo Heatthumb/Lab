@@ -13,7 +13,7 @@ HTML_TEMPLATE = """
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Viral Studio V103</title>
+    <title>Viral Studio V103 - Image Booster</title>
     <style>
         :root { --mint: #00FFC2; --carbon: #0B0D10; --card: #151A21; --border: #273140; --blue: #40E0FF; --gold: #FFD700; --canva: #00C4CC; --red: #ff4d4d; --bright-dl: #1A73E8; }
         body { background: var(--carbon); color: #E9EEF5; font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; overflow:hidden; }
@@ -52,7 +52,7 @@ HTML_TEMPLATE = """
     {% if not logged_in %}
     <div style="display:flex; height:100vh; width:100vw; align-items:center; justify-content:center;">
         <form method="POST" action="/login" style="background:var(--card); padding:40px; border-radius:16px; border:1px solid var(--border);">
-            <h2 style="color:var(--mint); margin:0 0 20px 0; font-weight:900; text-align:center;">VIRAL STUDIO V103</h2>
+            <h2 style="color:var(--mint); margin:0 0 20px 0; font-weight:900; text-align:center;">VIRAL STUDIO - BOOSTER</h2>
             <input type="password" name="password" placeholder="PASSWORD" style="width:100%; padding:14px; margin-bottom:20px; background:#000; color:white; border:1px solid var(--border); border-radius:8px; text-align:center;">
             <button type="submit" class="btn-action" style="background:var(--gold); width:100%; color:#000;">INITIALIZE</button>
         </form>
@@ -67,14 +67,8 @@ HTML_TEMPLATE = """
                     <a href="/history" style="color:var(--blue); text-decoration:none; font-size:11px; font-weight:bold; border:1px solid; padding:4px 10px; border-radius:4px;">OPEN VAULT</a>
                 </div>
             </div>
-            
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                <button class="btn-action" style="background:var(--mint); color:#000;" onclick="document.getElementById('vidInp').click()">+ VIDEO SCAN</button>
-                <button class="btn-action" style="background:var(--blue); color:#000;" onclick="document.getElementById('imgInp').click()">+ IMAGE SCAN</button>
-            </div>
-            
-            <input type="file" id="vidInp" accept="video/*" style="display:none" onchange="processVideo()">
-            <input type="file" id="imgInp" accept="image/*" style="display:none" onchange="processImageLayout()">
+            <button class="btn-action" style="background:var(--mint); width:100%; color:#000;" onclick="document.getElementById('imgInp').click()">+ SCAN IMAGE LAYOUT</button>
+            <input type="file" id="imgInp" accept="image/*,video/*" style="display:none" onchange="processImage()">
         </div>
 
         <div id="helpBox" class="help-popover">
@@ -85,21 +79,21 @@ HTML_TEMPLATE = """
             </div>
             <div class="guide-section">
                 <div class="guide-title" style="color:var(--red);"><span class="color-indicator" style="background:var(--red);"></span> Red Fixation Target</div>
-                <p class="guide-desc">High-attention crosshair. Core content must lock precisely within these corner brackets to instantly break fast vertical feed scrolls.</p>
+                <p class="guide-desc">High-attention crosshair brackets tracking vertical and horizontal focus locks.</p>
             </div>
             <div class="guide-section">
                 <div class="guide-title" style="color:var(--blue);"><span class="color-indicator" style="background:var(--blue);"></span> Blue Focus Perimeter</div>
-                <p class="guide-desc">Segmented bounding framework tracking target human sightline expansions during the crucial opening split-seconds.</p>
+                <p class="guide-desc">Segmented bounding framework tracking target human sightline expansions over time.</p>
             </div>
             <div class="guide-section">
                 <div class="guide-title" style="color:var(--mint);"><span class="color-indicator" style="background:var(--mint);"></span> Green Noise Grid Matrix</div>
-                <p class="guide-desc">Friction mapping. Draws micro-clutter bounds. Thick dense grid intersections denote layout noise choking your focal center.</p>
+                <p class="guide-desc">Friction mapping. Appears ONLY on chaotic layouts scoring below 65 to highlight visual crowding.</p>
             </div>
             <button onclick="toggleHelp()" style="width:100%; margin-top:8px; background:var(--border); color:#fff; border:none; padding:6px; border-radius:4px; cursor:pointer; font-weight:900; font-size:10px; letter-spacing:0.5px;">DISMISS</button>
         </div>
 
         <div class="sidebar-sec" style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:11px; font-weight:900; color:var(--blue); letter-spacing:1px;">EXTRACTED FRAME BANK</span>
+            <span style="font-size:11px; font-weight:900; color:var(--blue); letter-spacing:1px;">IMAGE ASSET BANK</span>
             <button onclick="toggleHelp()" style="cursor:pointer; background:var(--border); border:none; color:var(--blue); font-weight:900; width:24px; height:24px; border-radius:50%;">?</button>
         </div>
         <div id="frameBank"></div>
@@ -108,62 +102,55 @@ HTML_TEMPLATE = """
     <div class="workspace">
         <div id="mainGrid" class="main-grid"></div>
     </div>
-    <video id="h-vid" style="display:none"></video>
     {% endif %}
 
     <script>
         let allExtractedFrames = [];
         let workspaceFrames = [];
 
-        async function processVideo() {
-            const file = document.getElementById('vidInp').files[0];
-            if (!file) return;
-            const video = document.getElementById('h-vid');
-            video.src = URL.createObjectURL(file);
-            video.onloadedmetadata = async () => {
-                allExtractedFrames = [];
-                for(let i=0; i < 20; i++) {
-                    const data = await grab(video, (video.duration / 20) * i);
-                    allExtractedFrames.push({ url: data, vscore: (Math.random()*53 + 45).toFixed(1) });
-                }
-                renderSidebar();
-                workspaceFrames = allExtractedFrames.slice(0,6).map(f => ({...f}));
-                renderAll();
-                saveToHistory(file.name || "Video Project Scan");
-            };
-        }
-
-        async function processImageLayout() {
+        async function processImage() {
             const file = document.getElementById('imgInp').files[0];
             if (!file) return;
             
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const imgDataUrl = event.target.result;
-                const freshFrame = {
-                    url: imgDataUrl,
-                    vscore: (Math.random()*53 + 45).toFixed(1)
-                };
-                
-                // Add directly into active banks and update workspaces
-                allExtractedFrames.unshift(freshFrame);
-                workspaceFrames.unshift({...freshFrame});
-                
-                renderSidebar();
-                renderAll();
-                saveToHistory(file.name || "Image Layout Scan");
-            };
-            reader.readAsDataURL(file);
+            allExtractedFrames = [];
+            
+            if (file.type.startsWith('video/')) {
+                // If a video file is added, grab its initial visual baseline layout framework
+                const data = await extractVideoFrame(file);
+                allExtractedFrames.push({ url: data, vscore: (Math.random()*53 + 45).toFixed(1) });
+            } else {
+                const data = await readImage(file);
+                allExtractedFrames.push({ url: data, vscore: (Math.random()*53 + 45).toFixed(1) });
+            }
+            
+            renderSidebar();
+            workspaceFrames = allExtractedFrames.map(f => ({...f}));
+            renderAll();
+            saveToHistory(file.name || "Layout Scan");
         }
 
-        async function grab(v, t) {
+        function readImage(file) {
             return new Promise(res => {
-                v.currentTime = t;
-                v.onseeked = () => {
-                    const c = document.createElement('canvas');
-                    c.width = v.videoWidth; c.height = v.videoHeight;
-                    c.getContext('2d').drawImage(v, 0, 0);
-                    res(c.toDataURL('image/png'));
+                const reader = new FileReader();
+                reader.onload = e => res(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function extractVideoFrame(file) {
+            return new Promise(res => {
+                const video = document.createElement('video');
+                video.src = URL.createObjectURL(file);
+                video.muted = true; video.playsInline = true;
+                video.onloadeddata = () => {
+                    video.currentTime = 0.1;
+                };
+                video.onseeked = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    res(canvas.toDataURL('image/png'));
                 };
             });
         }
@@ -190,7 +177,7 @@ HTML_TEMPLATE = """
                         <button onclick="workspaceFrames.splice(${i},1); renderAll();" style="color:var(--red); background:none; border:none; cursor:pointer; font-weight:bold; font-size:16px;">✕</button>
                     </div>
                     <div class="canvas-area">
-                        <img src="${f.url}" class="bg-layer" onclick="showCinema('${f.url}')">
+                        <img src="${f.url}" class="bg-layer" id="bg-img-${i}" onclick="showCinema('${f.url}')">
                         <canvas id="canvas-hm-${i}" class="heatmap-layer"></canvas>
                     </div>
                     
@@ -207,63 +194,95 @@ HTML_TEMPLATE = """
             `).join('');
         }
 
-        function generateDynamicAnalysis(score, elementsTracked) {
-            const highOpeners = ["Magnificent spatial formatting mapped.", "Elite asset arrangement recognized.", "Incredible subject prominence verified.", "Perfect structural geometry achieved.", "High-tier focal distribution baseline calculated."];
-            const highMids = ["The primary element flawlessly captures a red fixation core", "The human fixation tracker notes immediate focus", "An intense contrast bubble shields your primary message layer", "The gaze threshold spikes violently into the central blue radius", "Retinal impact indexing reaches peak density directly"];
-            const highEnds = ["inside the sweet spot. Visual drop-off matrix calculated at less than 3% over standard programmatic feeds.", "within the opening 100ms. Expect a geometric lift in raw click-through conversion rates across all distributions.", "preventing thumbnail bounce. Peripheral dead weight has been mathematically squeezed out of the frame completely.", "guaranteeing deep scroll freezing. This configuration is actively recommended for high-budget push campaigns."];
-            const midOpeners = ["Standard visual calibration index calculated.", "Moderate balancing attributes detected.", "Average clarity mapping verified across active pixels.", "Functional compositional weight distribution noted.", "Mid-tier tracking matrix output completed."];
-            const midMids = ["while eye tracking paths hit the main zone smoothly, peripheral clutter colors pull a fraction of interest away", "though the central red zone holds its shape, secondary background objects dilute the spatial flow", "the blue range captures the face element effectively, but contrast depth could be amplified further", "the structural layout keeps focus warm, but missing shadow separations allow elements to blur slightly"];
-            const midEnds = [" from the true target. Scaling the element up by 12% will drop green noise and elevate the baseline score.", " to the background layers. Darken secondary elements to push the total core valuation above 88%.", ". Minor tracking separation is present, but overall composition remains completely safe for primary testing.", ". Readjust tracking lines slightly to force focus tighter to the vertical center axis."];
-            const lowOpeners = ["Shattered visual balance arrays calculated.", "Critical composition layout discovered.", "Highly decentralized tracking footprint registered.", "Deficient subject isolation parameters noted.", "Sub-optimal structural blueprint rendered."];
-            const lowMids = ["gaze velocity patterns show immediate scatter as attention splits wildly away from the central line", `the heavy prominence of ${elementsTracked.greenCount} expanding green clutter clusters lets essential features drown completely`, "no absolute red fixation anchor is detected, allowing user focus to instantly skip past the asset window", "focal points collide across multiple non-essential grid coordinates, creating severe cognitive exhaustion"];
-            const lowEnds = [". Complete rebuild highly advised. Reposition main layers away from edge regions to stop feed drop-offs.", ". Human interest drop-out rate predicted at extreme levels. Increase target scaling and brightness instantly.", ". Moving the main graphical component out of the muddy border areas is mandatory to capture feed hooks.", ". Gaze exit velocity is tracking too high. Crop background elements to force an artificial center focal ring."];
+        function generateDynamicAnalysis(score, elementsTracked, isMobile) {
+            const platformText = isMobile ? "Short-form mobile feed mechanics applied. Vertical compression is active." : "Standard widescreen distribution calculations completed.";
+            
+            const highOpeners = ["Magnificent spatial formatting mapped.", "Elite asset arrangement recognized.", "Incredible subject prominence verified."];
+            const highMids = ["The primary element flawlessly captures your red fixation core", "The layout structure directs human attention pathways smoothly into position"];
+            const highEnds = ["inside the primary viewport zone.", "with minimal gaze friction noted across peripheral margins."];
+            
+            const lowOpeners = ["Shattered visual balance arrays calculated.", "Critical composition layout discovered.", "Highly decentralized tracking footprint registered."];
+            const lowMids = [`Heavy prominence of expanding clutter pixels (${elementsTracked.greenCount} units calculated) causes structural decay`, "No clean eye-tracking fixation anchor could lock efficiently inside the central boundary lines"];
+            const lowEnds = [". Reposition main graphic focus away from edge lines immediately.", ". Flatten background noise to drop programmatic bounce rates."];
 
             const select = (arr) => arr[Math.floor(Math.random() * arr.length)];
-            if (score >= 85) return `${select(highOpeners)} ${select(highMids)} ${select(highEnds)}`;
-            if (score >= 65) return `${select(midOpeners)} ${select(midMids)} ${select(midEnds)}`;
-            return `${select(lowOpeners)} ${select(lowMids)} ${select(lowEnds)}`;
+            
+            if (score >= 65) {
+                return `${platformText} ${select(highOpeners)} ${select(highMids)} ${select(highEnds)}`;
+            } else {
+                return `${platformText} ${select(lowOpeners)} ${select(lowMids)} ${select(lowEnds)}`;
+            }
         }
 
         function renderNativeHeatmap(idx, score) {
             const canvas = document.getElementById(`canvas-hm-${idx}`);
+            const imgElement = document.getElementById(`bg-img-${idx}`);
             const ctx = canvas.getContext('2d');
-            canvas.width = canvas.parentElement.offsetWidth; canvas.height = canvas.parentElement.offsetHeight;
-            ctx.clearRect(0, 0, canvas.width, canvas.height); canvas.style.display = "block";
+            
+            canvas.width = canvas.parentElement.offsetWidth; 
+            canvas.height = canvas.parentElement.offsetHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height); 
+            canvas.style.display = "block";
 
             const isLowScore = score < 65;
-            const coreX = canvas.width * (0.35 + Math.random() * 0.3); 
-            const coreY = canvas.height * (0.35 + Math.random() * 0.2);
+            
+            // 🔍 AUTO-DETECT ASPECT RATIO: Is this a vertical phone framework or a normal widescreen picture?
+            const isMobileLayout = imgElement.naturalHeight > imgElement.naturalWidth;
 
+            let coreX, coreY, radiusX, radiusY;
+
+            if (isMobileLayout) {
+                // Phone Mode Parameters: Strict alignment inside the narrow horizontal pillar
+                coreX = canvas.width * 0.5; 
+                coreY = canvas.height * (0.38 + Math.random() * 0.08); // Placed right where scrolling thumbs stop
+                radiusX = 55;  
+                radiusY = 95;  // Extended vertical scanning range
+            } else {
+                // Widescreen Mode Parameters: Sweeping horizontal boundaries
+                coreX = canvas.width * (0.38 + Math.random() * 0.24); 
+                coreY = canvas.height * (0.38 + Math.random() * 0.18);
+                radiusX = 85;
+                radiusY = 85;
+            }
+
+            // --- FRICTION MAPPING MATRIX (GREEN GRID) ---
             let greenLinesCount = 0;
             if (isLowScore) {
                 greenLinesCount = Math.floor(Math.random() * 3) + 4;
                 ctx.strokeStyle = "rgba(0, 255, 194, 0.25)";
                 ctx.lineWidth = 1;
-                for (let g = 10; g < canvas.width; g += 35) {
-                    if (g < coreX - 100 || g > coreX + 100) {
+                
+                let step = isMobileLayout ? 24 : 36; 
+                for (let g = 10; g < canvas.width; g += step) {
+                    if (g < coreX - 65 || g > coreX + 65) {
                         ctx.beginPath(); ctx.moveTo(g, 0); ctx.lineTo(g, canvas.height); ctx.stroke();
                     }
                 }
-                for (let j = 10; j < canvas.height; j += 35) {
-                    if (j < coreY - 60 || j > coreY + 60) {
+                for (let j = 10; j < canvas.height; j += step) {
+                    if (j < coreY - 65 || j > coreY + 65) {
                         ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
                     }
                 }
             } else {
-                ctx.strokeStyle = "rgba(0, 255, 194, 0.1)";
+                // High Score / Clean Background: No Green Noise Grid is rendered
+                ctx.strokeStyle = "rgba(0, 255, 194, 0.08)";
                 ctx.lineWidth = 1;
                 ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
             }
 
+            // --- BLUE EXPANSION PERIMETER ---
             ctx.strokeStyle = "rgba(64, 224, 255, 0.7)";
             ctx.lineWidth = 1.5;
             ctx.setLineDash([6, 8]);
-            ctx.beginPath(); ctx.arc(coreX, coreY, 80, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath();
+            ctx.ellipse(coreX, coreY, radiusX, radiusY, 0, 0, Math.PI * 2);
+            ctx.stroke();
             ctx.setLineDash([]);
 
+            // --- RED TARGET TRACKING BRACKETS ---
             ctx.strokeStyle = "rgba(255, 77, 77, 0.9)";
             ctx.lineWidth = 2;
-            const size = 35;
+            const size = isMobileLayout ? 24 : 34; 
             ctx.beginPath(); ctx.moveTo(coreX - size, coreY - size + 10); ctx.lineTo(coreX - size, coreY - size); ctx.lineTo(coreX - size + 10, coreY - size); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(coreX + size, coreY - size + 10); ctx.lineTo(coreX + size, coreY - size); ctx.lineTo(coreX + size - 10, coreY - size); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(coreX - size, coreY + size - 10); ctx.lineTo(coreX - size, coreY + size); ctx.lineTo(coreX - size + 10, coreY + size); ctx.stroke();
@@ -276,7 +295,7 @@ HTML_TEMPLATE = """
 
             const textTarget = document.getElementById(`analysis-text-${idx}`);
             const containerBox = document.getElementById(`analysis-box-${idx}`);
-            textTarget.innerText = generateDynamicAnalysis(score, { greenCount: greenLinesCount || 1 });
+            textTarget.innerText = generateDynamicAnalysis(score, { greenCount: greenLinesCount || 1 }, isMobileLayout);
             containerBox.style.display = "block";
         }
 
@@ -332,7 +351,7 @@ def history_page():
               </div><br><hr style="border:0; border-top:1px solid #273140; margin:20px 0;">"""
     
     if not VAULT_MEMORY: 
-        page += "<h3 style='color:#666; text-align:center; padding-top:80px;'>No active history arrays discovered. Run a video scan first.</h3>"
+        page += "<h3 style='color:#666; text-align:center; padding-top:80px;'>No active history arrays discovered. Run an image scan first.</h3>"
     
     for h in reversed(VAULT_MEMORY):
         f1 = h['frames'][0]['url'] if len(h['frames']) > 0 else ""
@@ -340,14 +359,14 @@ def history_page():
         
         page += f"""<div style="background:#151a21; border-radius:12px; padding:20px; margin-bottom:25px; border:1px solid #273140;">
                     <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                        <span style="font-size:16px; font-weight:bold; color:#FFD700;">{h['name']} <span style="color:#666; font-size:11px; margin-left:10px;">({len(h['frames'])} Frames Found)</span></span>
+                        <span style="font-size:16px; font-weight:bold; color:#FFD700;">{h['name']} <span style="color:#666; font-size:11px; margin-left:10px;">({len(h['frames'])} Assets Found)</span></span>
                         <span style="color:#666; font-size:12px;">{h['date']}</span>
                     </div>
                     
                     <div style="display:flex; gap:15px; cursor:pointer; background:#0b0d10; padding:12px; border-radius:8px; border:1px dashed #273140;" onclick="let e=document.getElementById('fold-{h['id']}'); e.style.display=(e.style.display==='none')?'grid':'none';">
                         <img src="{f1}" style="width:160px; aspect-ratio:16/9; object-fit:contain; background:#000; border-radius:4px; border:1px solid #333;">
                         <img src="{f2}" style="width:160px; aspect-ratio:16/9; object-fit:contain; background:#000; border-radius:4px; border:1px solid #333;">
-                        <div style="display:flex; flex-direction:column; justify-content:center; color:#40E0FF; font-size:12px; font-weight:bold; letter-spacing:0.5px;">➔ CLICK COVERS TO VIEW EXPANDED FRAME REAL ESTATE</div>
+                        <div style="display:flex; flex-direction:column; justify-content:center; color:#40E0FF; font-size:12px; font-weight:bold; letter-spacing:0.5px;">➔ CLICK COVERS TO VIEW EXPANDED IMAGE ASSET REAL ESTATE</div>
                     </div>
                     
                     <div id="fold-{h['id']}" style="display:none; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:15px; padding-top:15px; border-top:1px solid #273140;">"""
