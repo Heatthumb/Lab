@@ -67,8 +67,14 @@ HTML_TEMPLATE = """
                     <a href="/history" style="color:var(--blue); text-decoration:none; font-size:11px; font-weight:bold; border:1px solid; padding:4px 10px; border-radius:4px;">OPEN VAULT</a>
                 </div>
             </div>
-            <button class="btn-action" style="background:var(--mint); width:100%; color:#000;" onclick="document.getElementById('vidInp').click()">+ SCAN SOURCE VIDEO</button>
-            <input type="file" id="vidInp" style="display:none" onchange="processVideo()">
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <button class="btn-action" style="background:var(--mint); color:#000;" onclick="document.getElementById('vidInp').click()">+ VIDEO SCAN</button>
+                <button class="btn-action" style="background:var(--blue); color:#000;" onclick="document.getElementById('imgInp').click()">+ IMAGE SCAN</button>
+            </div>
+            
+            <input type="file" id="vidInp" accept="video/*" style="display:none" onchange="processVideo()">
+            <input type="file" id="imgInp" accept="image/*" style="display:none" onchange="processImageLayout()">
         </div>
 
         <div id="helpBox" class="help-popover">
@@ -111,6 +117,7 @@ HTML_TEMPLATE = """
 
         async function processVideo() {
             const file = document.getElementById('vidInp').files[0];
+            if (!file) return;
             const video = document.getElementById('h-vid');
             video.src = URL.createObjectURL(file);
             video.onloadedmetadata = async () => {
@@ -122,8 +129,31 @@ HTML_TEMPLATE = """
                 renderSidebar();
                 workspaceFrames = allExtractedFrames.slice(0,6).map(f => ({...f}));
                 renderAll();
-                saveToHistory(file.name || "Project Scan");
+                saveToHistory(file.name || "Video Project Scan");
             };
+        }
+
+        async function processImageLayout() {
+            const file = document.getElementById('imgInp').files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const imgDataUrl = event.target.result;
+                const freshFrame = {
+                    url: imgDataUrl,
+                    vscore: (Math.random()*53 + 45).toFixed(1)
+                };
+                
+                // Add directly into active banks and update workspaces
+                allExtractedFrames.unshift(freshFrame);
+                workspaceFrames.unshift({...freshFrame});
+                
+                renderSidebar();
+                renderAll();
+                saveToHistory(file.name || "Image Layout Scan");
+            };
+            reader.readAsDataURL(file);
         }
 
         async function grab(v, t) {
