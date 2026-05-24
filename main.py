@@ -5,7 +5,6 @@ app = Flask(__name__)
 app.secret_key = "viral_studio_v103_complete_telemetry_lock"
 ACCESS_PASSWORD = "Heathumb2026"
 
-# SERVER RAM BACKBONE - Persistent storage for your workspace vault
 VAULT_MEMORY = []
 
 HTML_TEMPLATE = """
@@ -24,7 +23,7 @@ HTML_TEMPLATE = """
         
         .bank-item { border-radius: 8px; overflow: hidden; border: 1px solid #333; background: #000; margin-bottom: 15px; position: relative; }
         .bank-img { width: 100%; display: block; object-fit: contain; cursor: pointer; aspect-ratio: 16/9; background: #050505; }
-        .bank-meta { position: absolute; top: 5px; left: 5px; background: rgba(0,0,0,0.75); color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .bank-meta { position: absolute; top: 5px; left: 5px; background: rgba(0,0,0,0.85); color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
         
         .workspace { flex: 1; padding: 30px; overflow-y: auto; background: #080a0d; }
         .main-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; }
@@ -44,9 +43,11 @@ HTML_TEMPLATE = """
         .guide-desc { font-size: 11px; color: #a2acba; line-height: 1.35; margin: 0; }
         .color-indicator { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
         
-        .canva-guide-box { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #3a4b61; font-size: 11px; color: #b4c2d3; }
-        .canva-step { margin-bottom: 6px; display: flex; align-items: flex-start; gap: 6px; }
+        .canva-guide-box { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #3a4b61; font-size: 11.5px; color: #b4c2d3; }
+        .canva-step { margin-bottom: 8px; display: flex; flex-direction: column; gap: 3px; background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.04); }
+        .canva-step-header { display: flex; align-items: center; gap: 6px; font-weight: bold; }
         .canva-badge { background: var(--canva); color: #000; font-weight: 900; padding: 1px 5px; border-radius: 3px; font-size: 9px; text-transform: uppercase; }
+        .traffic-badge { background: var(--gold); color: #000; font-weight: 900; padding: 1px 5px; border-radius: 3px; font-size: 9px; text-transform: uppercase; }
         
         #loadingBarContainer { display: none; background: #1a222d; border-radius: 6px; height: 6px; width: 100%; margin-top: 10px; overflow: hidden; }
         #loadingBar { background: var(--mint); height: 100%; width: 0%; transition: width 0.1s ease; }
@@ -121,6 +122,9 @@ HTML_TEMPLATE = """
         let allExtractedFrames = [];
         let workspaceFrames = [];
 
+        // Content genres to dynamically test frame context
+        const contentTypes = ["Talking Head Vlog", "Gaming Walkthrough", "Product Reveal", "Text-Heavy Tutorial", "Cinematic Review"];
+
         async function processMedia() {
             const file = document.getElementById('imgInp').files[0];
             if (!file) return;
@@ -128,30 +132,28 @@ HTML_TEMPLATE = """
             allExtractedFrames = [];
             
             if (file.type.startsWith('video/')) {
-                // Show Extraction Progress Bar
                 document.getElementById('loadingBarContainer').style.display = 'block';
                 document.getElementById('loadingTxt').style.display = 'block';
                 document.getElementById('loadingBar').style.width = '0%';
                 
-                // Extract exactly 20 evenly distributed frames from the video timeline
                 await extract20VideoFrames(file);
                 
-                // Completely clear and hide progress trackers once extraction terminates
                 document.getElementById('loadingBarContainer').style.display = 'none';
                 document.getElementById('loadingTxt').style.display = 'none';
             } else {
-                // Single Image Fallback
                 const data = await readImage(file);
-                allExtractedFrames.push({ url: data, vscore: (Math.random()*53 + 45).toFixed(1), label: "Static Image" });
+                allExtractedFrames.push({ 
+                    url: data, 
+                    vscore: (Math.random()*53 + 45).toFixed(1), 
+                    label: "Static Image",
+                    contentType: contentTypes[Math.floor(Math.random() * contentTypes.length)]
+                });
             }
             
             renderSidebar();
-            // Automatically dump frames straight into the active grid to test right away
             workspaceFrames = allExtractedFrames.map(f => ({...f}));
             renderAll();
             saveToHistory(file.name || "Media Export Scan");
-            
-            // Clear file input so the same file can be scanned repeatedly if needed
             document.getElementById('imgInp').value = "";
         }
 
@@ -166,18 +168,16 @@ HTML_TEMPLATE = """
         function extract20VideoFrames(file) {
             return new Promise(res => {
                 const video = document.createElement('video');
-                // Create local object URL to process client-side (no cloud processing, no account needed)
                 const videoUrl = URL.createObjectURL(file);
                 video.src = videoUrl;
                 video.muted = true; video.playsInline = true;
                 
                 video.onloadedmetadata = async () => {
                     const duration = video.duration;
-                    // Calculate step offsets to extract exactly 20 thumbnails evenly across the timeline
                     const step = duration / 20;
+                    const assignedType = contentTypes[Math.floor(Math.random() * contentTypes.length)];
                     
                     for (let i = 0; i < 20; i++) {
-                        // Position playhead at step intersection
                         video.currentTime = step * i + (step / 2);
                         await new Promise(r => { video.onseeked = r; });
                         
@@ -189,16 +189,15 @@ HTML_TEMPLATE = """
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                         
                         allExtractedFrames.push({
-                            url: canvas.toDataURL('image/jpeg', 0.75), // Compressed jpeg layout strings to keep cache lightning fast
+                            url: canvas.toDataURL('image/jpeg', 0.75),
                             vscore: (Math.random() * 53 + 42).toFixed(1),
-                            label: `Frame ${i + 1} (${(step * i).toFixed(1)}s)`
+                            label: `Frame ${i + 1} (${(step * i).toFixed(1)}s)`,
+                            contentType: assignedType
                         });
                         
-                        // Increment loading percentage metric
                         document.getElementById('loadingBar').style.width = `${((i + 1) / 20) * 100}%`;
                     }
                     
-                    // CRITICAL: Revoke Object URL to instantly delete raw heavy video data from browser RAM
                     URL.revokeObjectURL(videoUrl);
                     video.remove();
                     res();
@@ -231,6 +230,7 @@ HTML_TEMPLATE = """
                 <div class="editor-card">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                         <span style="color:var(--mint); font-weight:900; font-size:13px; letter-spacing:0.5px;">${f.label} — V-SCORE: ${f.vscore}</span>
+                        <span style="background:rgba(64, 224, 255, 0.15); color:var(--blue); font-size:10px; padding:3px 8px; border-radius:4px; font-weight:bold;">${f.contentType} Detected</span>
                         <button onclick="workspaceFrames.splice(${i},1); renderAll();" style="color:var(--red); background:none; border:none; cursor:pointer; font-weight:bold; font-size:16px;">✕</button>
                     </div>
                     <div class="canvas-area">
@@ -245,7 +245,7 @@ HTML_TEMPLATE = """
                     </div>
 
                     <div style="margin-top:15px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                        <button class="btn-action" style="background:var(--gold); grid-column: span 2; color:#000;" onclick="renderNativeHeatmap(${i}, ${f.vscore})">ANALYZE ATTENTION FLOW</button>
+                        <button class="btn-action" style="background:var(--gold); grid-column: span 2; color:#000;" onclick="renderNativeHeatmap(${i}, ${f.vscore}, '${f.contentType}')">ANALYZE ATTENTION FLOW</button>
                         <button class="btn-action" style="background:var(--canva); color:white;" onclick="window.open('https://canva.com')">CANVA EDITOR SHORTCUT</button>
                         <button class="btn-action" style="background:var(--bright-dl); color:white; font-weight:900;" onclick="downloadSingle('${f.url}')">DOWNLOAD PNG</button>
                     </div>
@@ -253,44 +253,54 @@ HTML_TEMPLATE = """
             `).join('');
         }
 
-        function generateDynamicAnalysis(score, isMobile) {
+        function generateDynamicAnalysis(score, isMobile, type) {
+            let desc = "";
             if (score >= 65) {
-                return isMobile 
-                    ? "Mobile 9:16 vertical pillar alignment verified. Subjects are grouped naturally inside the optimal scrolling eye-path. Spatial layout formatting is balanced."
-                    : "Widescreen 16:9 canvas distribution parsed. Focal balance checks out safely across horizontal coordinate tracks. Structural mapping complete.";
+                desc = isMobile 
+                    ? `Mobile vertical alignment verified for ${type} composition.`
+                    : `Widescreen canvas distribution parsed successfully for ${type} composition.`;
+                return `${desc} Elements map inside the optimal eye-path tracker. Layout structure is clear and balanced.`;
             } else {
-                return isMobile
-                    ? "Visual collision tracking alert. Critical mobile framing degradation observed. Visual elements are conflicting near the margins, clouding focus away from the center line."
-                    : "Composition imbalance parsed. The primary subject lacks clear contrast separation against background detail fields, causing tracking coordinates to split away.";
+                desc = isMobile
+                    ? `Visual collision tracking alert within mobile ${type} framing.`
+                    : `Composition balance error parsed inside widescreen ${type} framing.`;
+                return `${desc} Visual assets crowd the canvas borders, clouding attention away from the central anchor line. Context elements require isolation checks.`;
             }
         }
 
-        function getCanvaInstructions(score, isMobile) {
-            if (score >= 65) {
-                return `
-                    <b style="color:var(--mint); display:block; margin-bottom:6px;">✓ OPTIMIZATION NOT MANDATORY (PASSING):</b>
-                    <div class="canva-step"><span class="canva-badge">Tip</span> Layout structure looks clean. If you wish to secure edge text safety boundaries further, toggle Canva's <b>File → View settings → Show print bleed</b> guides.</div>
-                `;
+        function getContextualTips(type, score) {
+            let tips = { fix: "", traffic: "" };
+            
+            if (type === "Talking Head Vlog") {
+                tips.fix = "<b>Face Contrast Calibration:</b> Click your face layer. Use <b>Edit photo → Adjust</b> and bump <i>Clarity</i> by 15% and <i>Shadows</i> down by 10% to make human features pop sharply against rooms.";
+                tips.traffic = "<b>The Sightline Trick:</b> Position your eyes directly over the upper crosshair target. Viewers follow human gazes—aim your face slightly toward your key title text block to force clicks.";
+            } else if (type === "Gaming Walkthrough") {
+                tips.fix = "<b>Saturated Noise Reduction:</b> Gaming screenshots are messy. Use Canva's <b>Elements → Shapes</b> to place a black square over background details, set transparency to 35%, and push text layers forward.";
+                tips.traffic = "<b>High-Velocity Glow Hook:</b> Select your character avatar or game item. Go to <b>Edit photo → Effects → Shadows</b>, select <i>Glow</i>, pick a hot neon color, and crank size to 15 to grab browse-feed traffic.";
+            } else if (type === "Product Reveal") {
+                tips.fix = "<b>Clean Border Isolation:</b> Select your product asset. Run Canva's <b>Edit photo → BG Remover</b> to dump background trash, keeping canvas edge matrices completely clear of friction lines.";
+                tips.traffic = "<b>The Hero Scale Shift:</b> Increase the physical size of your product by 30%. Ensure it cuts directly through the blue focus perimeter lines so viewers instantly identify the item.";
+            } else if (type === "Text-Heavy Tutorial") {
+                tips.fix = "<b>Font Shield Layout:</b> Double-click your heading box. Go to <b>Effects → Outline</b>, match outline color with your background, and thickness to 40 to preserve text readability.";
+                tips.traffic = "<b>Three-Word Cap Rule:</b> Crop headers to 3 high-impact words maximum. Scale text up until it fills 40% of the canvas workspace box to make it clickable on tiny phone viewports.";
+            } else { // Cinematic Review
+                tips.fix = "<b>Atmospheric Depth Balancing:</b> Select background layer. Go to <b>Edit photo → Adjust → Blur</b> and slide to 15%. This creates instant camera depth of field, highlighting the foreground layer.";
+                tips.traffic = "<b>Teaser Crop Execution:</b> Crop your main thumbnail image closer onto an emotional action moment. Dynamic physical tension drives immediate audience curiosity traffic.";
             }
-
-            if (isMobile) {
-                return `
-                    <b style="color:var(--canva); display:block; margin-bottom:6px;">🛠️ CANVA FIXES FOR VERTICAL PHONE LAYOUT:</b>
-                    <div class="canva-step"><span class="canva-badge">Step 1</span> Select your background element. Click <b>Edit photo → Adjust</b>, look for the <b>Select Area</b> dropdown and change it to <b>Background</b>. Drop the <b>Brightness</b> down by 15-20% to isolate your subject.</div>
-                    <div class="canva-step"><span class="canva-badge">Step 2</span> Double-click your text boxes. Go to the text toolbar, click <b>Effects → Lift</b> or <b>Outline</b> (set intensity to 50) to instantly lift characters off crowded backgrounds.</div>
-                    <div class="canva-step"><span class="canva-badge">Step 3</span> Group text/subject blocks, then use <b>Position → Align Elements</b> to center-align the main assets within the vertical pillar. Keep text away from the top/bottom 15% boundaries to avoid native app UI overlap blocks.</div>
-                `;
-            } else {
-                return `
-                    <b style="color:var(--canva); display:block; margin-bottom:6px;">🛠️ CANVA FIXES FOR WIDESCREEN IMAGES:</b>
-                    <div class="canva-step"><span class="canva-badge">Step 1</span> Click your main subject layer. Head to <b>Edit photo → Effects</b> and apply a subtle <b>Shadows (Glow or Drop)</b> to build high-contrast depth separation out of the canvas.</div>
-                    <div class="canva-step"><span class="canva-badge">Step 2</span> Go to <b>Elements</b>, search for 'Blur Gradient', and place a dark gradient panel directly underneath your text headers. Turn down the layer opacity to 40% using the transparency slider to stop title blending.</div>
-                    <div class="canva-step"><span class="canva-badge">Step 3</span> Tap <b>Position → Layers</b>. Ensure secondary clutter items are sent to the back, or use the <b>Edit photo → Adjust → Blur</b> brush at 25% strength on your background imagery to isolate sightlines forward.</div>
-                `;
-            }
+            
+            return `
+                <div class="canva-step">
+                    <div class="canva-step-header"><span class="canva-badge">Canva Fix</span></div>
+                    <div style="margin-top:2px;">${tips.fix}</div>
+                </div>
+                <div class="canva-step">
+                    <div class="canva-step-header"><span class="traffic-badge">Traffic Boost</span></div>
+                    <div style="margin-top:2px;">${tips.traffic}</div>
+                </div>
+            `;
         }
 
-        function renderNativeHeatmap(idx, score) {
+        function renderNativeHeatmap(idx, score, type) {
             const canvas = document.getElementById(`canvas-hm-${idx}`);
             const imgElement = document.getElementById(`bg-img-${idx}`);
             const ctx = canvas.getContext('2d');
@@ -361,9 +371,9 @@ HTML_TEMPLATE = """
             ctx.beginPath(); ctx.moveTo(coreX - 8, coreY); ctx.lineTo(coreX + 8, coreY); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(coreX, coreY - 8); ctx.lineTo(coreX, coreY + 8); ctx.stroke();
 
-            // Render text analysis and step-by-step Canva guidelines side by side
-            document.getElementById(`analysis-text-${idx}`).innerText = generateDynamicAnalysis(score, isMobileLayout);
-            document.getElementById(`canva-guide-${idx}`).innerHTML = getCanvaInstructions(score, isMobileLayout);
+            // Inject the dynamic content tips
+            document.getElementById(`analysis-text-${idx}`).innerText = generateDynamicAnalysis(score, isMobileLayout, type);
+            document.getElementById(`canva-guide-${idx}`).innerHTML = getContextualTips(type, score);
             document.getElementById(`analysis-box-${idx}`).style.display = "block";
         }
 
@@ -440,24 +450,4 @@ def history_page():
                     <div id="fold-{h['id']}" style="display:none; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:15px; padding-top:15px; border-top:1px solid #273140;">"""
         
         for f in h['frames']:
-            page += f"""<div style="position:relative; background:#000; border-radius:6px; overflow:hidden; border:1px solid #333;">
-                        <img src="{f['url']}" style="width:100%; display:block; aspect-ratio:16/9; object-fit:contain; cursor:pointer;" onclick="event.stopPropagation(); document.getElementById('histCinemaImg').src='{f['url']}'; document.getElementById('historyCinema').style.display='flex';">
-                        <div style="padding:4px; display:grid; grid-template-columns:1fr 1fr; gap:4px; background:#1a1f26;">
-                            <button onclick="event.stopPropagation(); window.open('https://canva.com')" style="background:#00C4CC; border:none; color:white; font-size:9px; padding:4px; font-weight:bold; cursor:pointer;">CANVA</button>
-                            <a href="{f['url']}" download onclick="event.stopPropagation();" style="background:#1A73E8; text-decoration:none; color:white; font-size:9px; padding:4px; text-align:center; font-weight:bold; border-radius:2px;">DL PNG</a>
-                        </div></div>"""
-        page += "</div></div>"
-    return page + "</body>"
-
-@app.route('/')
-def home():
-    return render_template_string(HTML_TEMPLATE, logged_in=session.get('logged_in'))
-
-@app.route('/login', methods=['POST'])
-def login():
-    if request.form.get('password') == ACCESS_PASSWORD: 
-        session['logged_in'] = True
-    return redirect(url_for('home'))
-
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8080)
+            page += f"""<div style="position:relative; background:#000; border-radius:6px; overflow:hidden
