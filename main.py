@@ -69,7 +69,7 @@ HTML_TEMPLATE = """
                 <span style="color:var(--mint); font-weight:900; font-size:11px;">STUDIO WORKSPACE</span>
                 <div style="display:flex; gap:8px;">
                     <button onclick="clearWorkspace();" style="background:none; border:1px solid var(--red); color:var(--red); font-size:10px; font-weight:bold; padding:4px 8px; border-radius:4px; cursor:pointer;">RESET</button>
-                    <a href="/history" style="color:var(--blue); text-decoration:none; font-size:11px; font-weight:bold; border:1px solid; padding:4px 10px; border-radius:4px;">OPEN VAULT</a>
+                    <a href="/history" style="color:var(--blue); text-decoration:none; font-size:11px; font-weight:bold; border:1px solid var(--border); padding:4px 10px; border-radius:4px;">OPEN VAULT</a>
                 </div>
             </div>
             <button class="btn-action" style="background:var(--mint); width:100%; color:#000;" onclick="document.getElementById('imgInp').click()">+ INGEST VIDEO / IMAGE</button>
@@ -81,9 +81,9 @@ HTML_TEMPLATE = """
             <div id="loadingTxt" style="font-size: 10px; color: var(--blue); margin-top: 4px; text-align: center; display: none; font-weight: bold;">EXTRACTING ULTRA-SHARP FRAME REAL ESTATE...</div>
         </div>
 
-        <div class="sidebar-sec">
+        <div class="sidebar-sec" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
             <span style="font-size:11px; font-weight:900; color:var(--blue); letter-spacing:1px; display:block; margin-bottom:4px;">PERMANENT VAULT BANK</span>
-            <span style="font-size:10px; color:#78889b;">Click any micro-asset to display full resolution preview or reload into active workspace arrays seamlessly.</span>
+            <span style="font-size:10px; color:#78889b; display:block; margin-bottom:10px;">Click any micro-asset to display full resolution preview or reload into active workspace arrays seamlessly.</span>
             <div id="frameBank" class="vault-grid"></div>
         </div>
     </div>
@@ -180,20 +180,16 @@ HTML_TEMPLATE = """
                         await new Promise(r => { video.onseeked = r; });
                         
                         const canvas = document.createElement('canvas');
-                        // Use native video frame coordinates to avoid downscaling soft lines
                         canvas.width = parseInt(video.videoWidth); 
                         canvas.height = parseInt(video.videoHeight);
                         
                         const ctx = canvas.getContext('2d', { alpha: false });
-                        
-                        // Force hardware anti-blur scaling algorithms
                         ctx.imageSmoothingEnabled = true;
                         ctx.imageSmoothingQuality = 'high';
                         
-                        // Render video matrix to precise integer anchors
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                         
-                        let imgDataUrl = canvas.toDataURL('image/jpeg', 0.95); // High-quality rendering conversion
+                        let imgDataUrl = canvas.toDataURL('image/jpeg', 0.95);
                         let predictedType = guessContentTypeFromFrame(canvas.width, canvas.height);
                         
                         allExtractedFrames.push({
@@ -265,10 +261,10 @@ HTML_TEMPLATE = """
                         <button class="btn-action" style="background:var(--canva); color:white;" onclick="window.open('https://canva.com')">CANVA SHORTCUT</button>
                         <button class="btn-action" style="background:var(--bright-dl); color:white; font-weight:900;" onclick="downloadSingle('${f.url}')">DOWNLOAD PNG</button>
                         
-                        <button class="btn-action premium-locked-btn" onclick="alert('Upgrade to Premium to unlock Custom Canva Injection Frameworks!')">
+                        <button class="btn-action premium-locked-btn" onclick="alert('Upgrade via HEATThumb.co.uk to unlock Custom Canva Injection Frameworks!')">
                             <span class="premium-lock-badge">PRO</span> CANVA INJECTOR
                         </button>
-                        <button class="btn-action premium-locked-btn" onclick="alert('Upgrade to Premium to trigger 1-Click AI Transparent Foreground Cutouts!')">
+                        <button class="btn-action premium-locked-btn" onclick="alert('Upgrade via HEATThumb.co.uk to trigger 1-Click AI Transparent Foreground Cutouts!')">
                             <span class="premium-lock-badge">PRO</span> ISOLATE SUBJECT
                         </button>
                     </div>
@@ -297,22 +293,22 @@ HTML_TEMPLATE = """
             }
             
             let blueprintRows = tips.path.map((step, index) => `
-                <div class="blueprint-row">
+                <div class="blueprint-row" style="margin-top: 4px; display: flex; gap: 6px;">
                     <span style="color:#666; font-weight:bold;">[0${index + 1}]</span> <span>${step}</span>
                 </div>
             `).join('');
 
             return `
-                <div class="canva-step">
-                    <div class="canva-step-header"><span class="canva-badge">CANVA EXECUTION OPTIMIZER</span></div>
+                <div class="canva-step" style="margin-top: 10px;">
+                    <div class="canva-step-header" style="font-weight: bold; color: var(--canva); font-size: 11px;">[CANVA EXECUTION OPTIMIZER]</div>
                     <div style="margin-top:2px; font-weight:500; color:#cdd7e4;">${tips.fix}</div>
                 </div>
-                <div class="blueprint-container">
-                    <div class="blueprint-title">➔ STEP-BY-STEP INTERFACE EXECUTION BLUEPRINT</div>
+                <div class="blueprint-container" style="margin-top: 10px; background: #0b0d10; padding: 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 11px;">
+                    <div class="blueprint-title" style="color: var(--gold); font-weight: bold; font-size: 10px; margin-bottom: 4px;">➔ STEP-BY-STEP INTERFACE EXECUTION BLUEPRINT</div>
                     ${blueprintRows}
                 </div>
                 <div class="canva-step" style="margin-top:10px;">
-                    <div class="canva-step-header"><span class="traffic-badge">ALGORITHMIC TRAFFIC BOOSTER</span></div>
+                    <div class="canva-step-header" style="font-weight: bold; color: var(--mint); font-size: 11px;">[ALGORITHMIC TRAFFIC BOOSTER]</div>
                     <div style="margin-top:2px; font-weight:500; color:#cdd7e4;">${tips.traffic}</div>
                 </div>
             `;
@@ -399,7 +395,6 @@ def history_page():
         page += "<h3 style='color:#666; text-align:center; padding-top:80px;'>No active history arrays discovered.</h3>"
     
     for h in reversed(VAULT_MEMORY):
-        f1 = h['frames'][0]['url'] if len(h['frames']) > 0 else ""
         page += f"""<div style="background:#151a21; border-radius:12px; padding:20px; margin-bottom:25px; border:1px solid #273140;">
                     <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
                         <span style="font-size:16px; font-weight:bold; color:#FFD700;">{h['name']}</span>
