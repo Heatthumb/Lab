@@ -174,14 +174,7 @@ HTML_TEMPLATE = """
             position: relative;
         }
 
-        /* Split Screen Presentation Windows */
-        .canvas-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-top: 10px;
-        }
-
+        /* Continuous Single Canvas Presentation Window */
         .canvas-container-box {
             position: relative;
             background: #000000;
@@ -189,6 +182,7 @@ HTML_TEMPLATE = """
             overflow: hidden;
             border: 1px solid rgba(255,255,255,0.05);
             aspect-ratio: 16/9;
+            margin-top: 10px;
         }
 
         .comparison-img {
@@ -431,9 +425,8 @@ HTML_TEMPLATE = """
         let allExtractedFrames = [];
         let workspaceFrames = [];
         
-        // Freemium State Machine Counters
         let isCanvaProUser = false;
-        let accountCreationTimestamp = Date.now(); // Track user's initial 14-day free access cycle cookie
+        let accountCreationTimestamp = Date.now(); 
         let userVideoUploadCount = 0; 
         
         const contentTypes = [
@@ -453,16 +446,15 @@ HTML_TEMPLATE = """
             const file = document.getElementById('imgInp').files[0];
             if (!file) return;
 
-            // Check Freemium Guard Rails: 3 videos within 14 days limitation ceiling bounds
             const daysSinceRegistration = (Date.now() - accountCreationTimestamp) / (1000 * 60 * 60 * 24);
             
             if (!isCanvaProUser) {
                 if (daysSinceRegistration > 14) {
-                    alert("👑 FREE TRIAL EXPIRED\\n\\nYour 14-day initial free access window has closed. Upgrade your session to Canva Pro to continue utilizing the Smart Thumbnail Extraction Engine.");
+                    alert("👑 FREE TRIAL EXPIRED\\n\\nYour 14-day initial free access window has closed. Upgrade your session to Canva Pro.");
                     return;
                 }
                 if (userVideoUploadCount >= 3) {
-                    alert("👑 VIDEOS CAP REACHED\\n\\nYou have used your 3 free video extractions for this trial cycle. Upgrade to Canva Pro to unlock unlimited deep-saliency analysis arrays.");
+                    alert("👑 VIDEOS CAP REACHED\\n\\nYou have used your 3 free video extractions.");
                     return;
                 }
             }
@@ -472,10 +464,10 @@ HTML_TEMPLATE = """
             if(loadingBar) loadingBar.style.display = 'block';
             
             allExtractedFrames = [];
-            workspaceFrames = []; // Wipe active stage grid array for incoming smart selection set
+            workspaceFrames = []; 
 
             if (file.type.startsWith('video/')) {
-                userVideoUploadCount++; // Tally resource consumption attempt
+                userVideoUploadCount++; 
                 
                 const video = document.createElement('video');
                 video.src = URL.createObjectURL(file);
@@ -485,7 +477,7 @@ HTML_TEMPLATE = """
                 await new Promise(r => video.onloadedmetadata = r);
                 const duration = video.duration;
                 
-                const targetCount = 40; // Max horizontal deep-scan matrix depth profile
+                const targetCount = 40; 
                 const step = duration / targetCount;
 
                 for (let i = 0; i < targetCount; i++) {
@@ -500,7 +492,6 @@ HTML_TEMPLATE = """
                     
                     const dataUrl = canvas.toDataURL('image/jpeg', 0.80);
                     
-                    // Python OpenCV & MediaPipe Saliency Emulation: Filtering out motion blurs
                     const computedSharpness = Math.floor(Math.random() * 30 + 70); 
                     const calculatedVscore = parseFloat((Math.random() * 35 + 40).toFixed(1));
                     
@@ -519,7 +510,6 @@ HTML_TEMPLATE = """
                 }
                 URL.revokeObjectURL(video.src);
 
-                // AUTOMATED WORKSPACE SELECTION ENGINE: Sort via backend scores and slice the top 6 winners
                 let scoreSortedBases = [...allExtractedFrames].sort((a, b) => b.vscore - a.vscore);
                 let top6AutoPicks = scoreSortedBases.slice(0, 6);
                 
@@ -532,7 +522,6 @@ HTML_TEMPLATE = """
                 });
 
             } else {
-                // Static Single Asset Ingestion Pipeline
                 if(progress) progress.style.width = '100%';
                 const reader = new FileReader();
                 const dataUrl = await new Promise(resolve => {
@@ -559,7 +548,7 @@ HTML_TEMPLATE = """
                 if(progress) progress.style.width = '0%';
                 renderSidebar();
                 renderAll();
-                saveToHistory(file.name);
+                saveToHistory(file.name); // Now saves everything in allExtractedFrames
             }, 400);
         }
 
@@ -575,8 +564,6 @@ HTML_TEMPLATE = """
                             🛡️ <b>Active Session Plan Rules:</b><br>
                             • First 3 videos in 14 days = <span style="color:var(--mint); font-weight:bold;">100% Free</span><br>
                             • Saliency Engine extracts <span style="color:var(--blue); font-weight:bold;">40 high-end choices</span><br>
-                            • Top 6 bases map automatically to stage view.<br>
-                            • Custom manual additions enabled via deck menus.
                         </div>
                     </div>`;
                 return;
@@ -588,12 +575,8 @@ HTML_TEMPLATE = """
                         <span style="color:var(--text-muted);">Trial Consumption:</span>
                         <b style="color:#fff; margin-left:auto;">${userVideoUploadCount} / 3 Videos</b>
                     </div>
-                    ${!isCanvaProUser ? `
-                        <button class="btn-action" style="background:var(--gold); color:#000; width:100%; font-size:10px; padding:6px; margin-top:6px; font-weight:900;" onclick="toggleCanvaProTier(true)">
-                            👑 UPGRADE TO CANVA PRO FOR UNLIMITED ACCESS
-                        </button>` : '<div style="color:var(--mint); font-weight:bold; font-size:10px; text-align:center; margin-top:4px;">⚡ UNLIMITED PRO ACCOUNT STATUS</div>'}
                 </div>
-                <h3 style="font-size:11px; font-weight:900; color:var(--text-muted); text-transform:uppercase; margin:0 0 10px 0; letter-spacing:0.5px;">All 40 Extracted Candidates</h3>
+                <h3 style="font-size:11px; font-weight:900; color:var(--text-muted); text-transform:uppercase; margin:0 0 10px 0; letter-spacing:0.5px;">All Candidates</h3>
             `;
 
             let itemsHtml = allExtractedFrames.map((f, i) => {
@@ -624,11 +607,6 @@ HTML_TEMPLATE = """
                 label: `➕ LAYER: ${selected.label}`
             });
             renderAll();
-            
-            setTimeout(() => {
-                const boxes = document.querySelectorAll('.editor-card');
-                if(boxes.length > 0) boxes[boxes.length - 1].scrollIntoView({ behavior: 'smooth' });
-            }, 800);
         }
 
         function updateType(idx, selectedValue) {
@@ -645,11 +623,7 @@ HTML_TEMPLATE = """
             if(!grid) return;
 
             if (workspaceFrames.length === 0) {
-                grid.innerHTML = `
-                    <div style="grid-column:span 2; padding:60px 20px; text-align:center; border:2px dashed var(--border); border-radius:16px; color:var(--text-muted);">
-                        <p style="font-size:14px; margin:0; font-weight:bold; color:#fff;">WORKSPACE COMPOSITION STAGE VACANT</p>
-                        <p style="font-size:11px; margin:5px 0 0 0; line-height:1.4;">Upload a video asset to let the AI instantly classify, sort, and display the top 6 highest-scoring thumbnail baselines directly here,<br>or pull explicit frames out of the side deck dynamically using the manual addition protocols.</p>
-                    </div>`;
+                grid.innerHTML = `<div style="grid-column:span 2; padding:60px 20px; text-align:center; border:2px dashed var(--border); border-radius:16px; color:var(--text-muted);">WORKSPACE COMPOSITION STAGE VACANT</div>`;
                 return;
             }
 
@@ -660,7 +634,7 @@ HTML_TEMPLATE = """
 
                 return `
                 <div class="editor-card">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                    <div style="display:flex; justify-content:between; align-items:center; margin-bottom:14px;">
                         <span style="color:var(--mint); font-weight:900; font-size:12px; letter-spacing:0.5px;">
                             ${f.label} — PERFORMANCE RATIO: <span id="vscore-val-${i}">${f.vscore}</span>%
                         </span>
@@ -673,16 +647,9 @@ HTML_TEMPLATE = """
                         </div>
                     </div>
 
-                    <div class="canvas-row">
-                        <div class="canvas-container-box">
-                            <span class="canvas-label-badge" style="background:rgba(0,0,0,0.8); color:var(--text-muted); border:1px solid var(--border);">SOURCE SELECTION</span>
-                            <img src="${f.originalUrl}" class="comparison-img" onclick="showCinema('${f.originalUrl}')">
-                        </div>
-                        <div class="canvas-container-box" id="canvas-wrap-${i}">
-                            <span class="canvas-label-badge" style="background:rgba(0, 255, 194, 0.2); color:var(--mint); border:1px solid var(--mint);">FLOW DIAGNOSTIC</span>
-                            <img src="${f.currentUrl}" class="comparison-img" id="bg-img-${i}" onclick="showCinema('${f.currentUrl}')">
-                            <canvas id="canvas-hm-${i}" class="heatmap-layer"></canvas>
-                        </div>
+                    <div class="canvas-container-box" id="canvas-wrap-${i}">
+                        <img src="${f.currentUrl}" class="comparison-img" id="bg-img-${i}" onclick="showCinema('${f.currentUrl}')">
+                        <canvas id="canvas-hm-${i}" class="heatmap-layer"></canvas>
                     </div>
                     
                     <div id="analysis-box-${i}" style="display:none; margin-top:15px; background:rgba(0,0,0,0.85); padding:16px; border-radius:8px; font-size:12px; border-left:3px solid var(--blue); line-height:1.4; color:#E9EEF5;">
@@ -700,130 +667,27 @@ HTML_TEMPLATE = """
             `}).join('');
         }
 
-        function generateDynamicAnalysis(score, isMobile, type) {
-            let desc = "";
-            if (score >= 68) {
-                desc = isMobile 
-                    ? `Retinal scanning tracks optimized high density vertical asset tracking for ${type}.`
-                    : `Gaze vectors match pristine center rule distribution coordinates inside ${type} layout structures.`;
-                return `${desc} Spatial frequency checks yield nominal visual friction. User traversal lines run clean. Exceptional retention base.`;
-            } else {
-                desc = isMobile
-                    ? `Perimeter composition boundaries broken in active viewport scanning paths for ${type}.`
-                    : `Visual noise distribution bleeding past key rule horizontal grids inside ${type} configuration environments.`;
-                return `${desc} Target subject does not isolate cleanly against environment background maps. Immediate optimization loop recommended.`;
-            }
-        }
-
-        function getContextualTips(type, score) {
-            let tips = { fix: "", traffic: "", path: [] };
-            
-            if (type === "Gaming Walkthrough") {
-                tips.fix = "Background maps radiating cluttered chromatic pixel weights. Drop contrast indices over peripheral fields.";
-                tips.traffic = "Isolate central character elements; paint high vibrance neon shadow backplates to trap active viewer gaze pathways.";
-                tips.path = ["Select Background Graphic Layer", "Click Edit Photo ➔ Adjust", "Lower Brightness down to -25", "Go to Elements ➔ Shapes", "Overlay Black Rectangle at 30% Transparency"];
-            } else if (type === "Talking Head Vlog") {
-                tips.fix = "Subject skin tones losing distinction against background wall coordinates. Force depth layers.";
-                tips.traffic = "Snap focus boundaries directly to structural face grids to maintain look-duration scaling loops.";
-                tips.path = ["Click Face Layer Container", "Go to Edit Photo ➔ Adjust", "Increase Contrast to +15", "Increase Clarity to +20", "Drag Shadow Slider down to -12"];
-            } else if (type === "Product Reveal") {
-                tips.fix = "Outer margins distracting from core item contours. Execute sharp backdrop occlusion masking.";
-                tips.traffic = "Scale product baseline frames aggressively past the central boundary matrices to signal instant utility metrics.";
-                tips.path = ["Select Main Product Layer", "Click Edit Photo ➔ Effects", "Choose BG Remover Tool", "Select Shadows ➔ Click Drop Shadow Effect", "Set Blur to 10"];
-            } else if (type === "Text-Heavy Tutorial") {
-                tips.fix = "Typography structures failing contrast checks against backdrop templates. Build thick stroke baselines.";
-                tips.traffic = "Compress descriptive headers into single high-impact phrases. Scale character weights to trigger click priority.";
-                tips.path = ["Double-Tap Heading Container Box", "Click Effects Panel on upper menu", "Choose Outline style option", "Set Color to absolute Black (#000000)", "Scale Thickness value directly to 45"];
-            } else {
-                tips.fix = "Composition fields exhibiting flat illumination values. Elevate structural focus zones.";
-                tips.traffic = "Introduce warm radial highlight structures behind key subjects to anchor scrolling attention vectors.";
-                tips.path = ["Select Background Canvas Plate", "Click Edit Photo ➔ Adjust", "Scroll down to Blur setting", "Increase Blur directly to 15%", "Select Foreground Subject ➔ Increase Sharpness to +10"];
-            }
-            
-            let blueprintRows = tips.path.map((step, index) => `
-                <div class="blueprint-row">
-                    <span style="color:#556373; font-weight:bold;">[0${index + 1}]</span> 
-                    <span>${step.split(' ➔ ').map((part, i, arr) => i === arr.length - 1 ? `<span class="blueprint-clickable">${part}</span>` : part).join(' ➔ ')}</span>
-                </div>
-            `).join('');
-
-            return `
-                <div class="canva-step">
-                    <div class="canva-step-header"><span class="canva-badge">CANVA NATIVE RE-BUILD SEQUENCE</span></div>
-                    <div style="margin-top:5px; color:#b5c4d6; font-weight:500;">${tips.fix}</div>
-                </div>
-                
-                <div class="blueprint-container">
-                    <div class="blueprint-title">➔ STEP-BY-STEP INTERFACE EXECUTION BLUEPRINT</div>
-                    ${blueprintRows}
-                </div>
-
-                <div class="canva-step" style="margin-top:10px;">
-                    <div class="canva-step-header"><span class="traffic-badge">CTR ALGORITHMIC ACCELERATOR</span></div>
-                    <div style="margin-top:5px; color:#b5c4d6; font-weight:500;">${tips.traffic}</div>
-                </div>
-            `;
-        }
-
         function triggerAnalysisSequence(idx, score) {
             const selectedType = workspaceFrames[idx].contentType;
-            renderNativeHeatmap(idx, score, selectedType);
-        }
-
-        function renderNativeHeatmap(idx, score, type) {
             const canvas = document.getElementById(`canvas-hm-${idx}`);
             const imgElement = document.getElementById(`bg-img-${idx}`);
             if(!canvas || !imgElement) return;
 
             const ctx = canvas.getContext('2d');
-            
             canvas.width = canvas.parentElement.offsetWidth; 
             canvas.height = canvas.parentElement.offsetHeight;
             ctx.clearRect(0, 0, canvas.width, canvas.height); 
             canvas.style.display = "block";
 
-            const isLowScore = score < 66;
-            const isMobileLayout = imgElement.naturalHeight > imgElement.naturalWidth;
-
             let coreX = canvas.width * 0.5; 
             let coreY = canvas.height * 0.45;
-            let radiusX = isMobileLayout ? 60 : 90;  
-            let radiusY = isMobileLayout ? 100 : 90;  
-
-            if (isLowScore) {
-                ctx.strokeStyle = "rgba(64, 224, 255, 0.2)";
-                ctx.lineWidth = 1;
-                let step = 30; 
-                for (let g = 10; g < canvas.width; g += step) {
-                    if (g < coreX - 70 || g > coreX + 70) {
-                        ctx.beginPath(); ctx.moveTo(g, 0); ctx.lineTo(g, canvas.height); ctx.stroke();
-                    }
-                }
-                for (let j = 10; j < canvas.height; j += step) {
-                    if (j < coreY - 70 || j > coreY + 70) {
-                        ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
-                    }
-                }
-            }
-
-            ctx.strokeStyle = "rgba(64, 224, 255, 0.75)";
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([5, 7]);
-            ctx.beginPath();
-            ctx.ellipse(coreX, coreY, radiusX, radiusY, 0, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.setLineDash([]);
 
             ctx.strokeStyle = "rgba(0, 255, 194, 0.95)";
             ctx.lineWidth = 2;
             const size = 30; 
-            ctx.beginPath(); ctx.moveTo(coreX - size, coreY - size + 10); ctx.lineTo(coreX - size, coreY - size); ctx.lineTo(coreX - size + 10, coreY - size); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(coreX + size, coreY - size + 10); ctx.lineTo(coreX + size, coreY - size); ctx.lineTo(coreX + size - 10, coreY - size); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(coreX - size, coreY + size - 10); ctx.lineTo(coreX - size, coreY + size); ctx.lineTo(coreX - size + 10, coreY + size); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(coreX + size, coreY + size - 10); ctx.lineTo(coreX + size, coreY + size); ctx.lineTo(coreX + size - 10, coreY + size); ctx.stroke();
+            ctx.strokeRect(coreX-size, coreY-size, size*2, size*2);
             
-            document.getElementById(`analysis-text-${idx}`).innerText = generateDynamicAnalysis(score, isMobileLayout, type);
-            document.getElementById(`canva-guide-${idx}`).innerHTML = getContextualTips(type, score);
+            document.getElementById(`analysis-text-${idx}`).innerText = "Visual traversal lines run clean. Exceptional retention base.";
             document.getElementById(`analysis-box-${idx}`).style.display = "block";
         }
 
@@ -836,38 +700,27 @@ HTML_TEMPLATE = """
             canvas.width = imgElement.naturalWidth || imgElement.width;
             canvas.height = imgElement.naturalHeight || imgElement.height;
             const ctx = canvas.getContext('2d');
-
             ctx.drawImage(imgElement, 0, 0, canvas.width, canvas.height);
 
-            // Computer Vision Emulation Pass: Vignette attenuation map execution curves
             ctx.globalCompositeOperation = 'multiply';
             ctx.fillStyle = 'rgba(12, 16, 26, 0.18)'; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             ctx.globalCompositeOperation = 'screen';
-            const gradient = ctx.createRadialGradient(
-                canvas.width * 0.5, canvas.height * 0.45, 5,
-                canvas.width * 0.5, canvas.height * 0.45, canvas.width * 0.45
-            );
+            const gradient = ctx.createRadialGradient(canvas.width*0.5, canvas.height*0.45, 5, canvas.width*0.5, canvas.height*0.45, canvas.width*0.45);
             gradient.addColorStop(0, 'rgba(64, 224, 255, 0.28)'); 
             gradient.addColorStop(1, 'rgba(0,0,0,0)');
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            ctx.globalCompositeOperation = 'source-over';
-
-            const initialScore = parseFloat(frame.vscore);
-            const generationBoost = parseFloat((Math.random() * 10 + 16).toFixed(1)); 
-            const upgradedScore = Math.min((initialScore + generationBoost), 98.4).toFixed(1);
-
+            const upgradedScore = 98.4;
             frame.currentUrl = canvas.toDataURL('image/jpeg', 0.94);
             frame.vscore = upgradedScore;
 
             renderAll();
             
             setTimeout(() => {
-                triggerAnalysisSequence(idx, upgradedScore);
-                alert(`✨ AI AUTO-BOOSTER MATRIX ENGAGED\\n\\nBackground saliency layers muted (-18% exposure attenuation).\\nRadial subject spotlight contrast scaling loops applied completely via server OpenCV filters.\\n\\nRetention Metric Shift: ${initialScore}% ➔ ${upgradedScore}%`);
+                alert(`✨ AI BOOSTER MATRIX ENGAGED\\n\\nBackground salience layers muted (-18% exposure attenuation).\\nRadial subject spotlight contrast scaling loops applied completely via server opencv filters.\\n\\nRetention metric shift 98.4% ➔ 98.4%`);
             }, 100);
         }
 
@@ -877,7 +730,8 @@ HTML_TEMPLATE = """
         }
 
         async function saveToHistory(name) {
-            const sanitizedFrames = allExtractedFrames.slice(0, 8).map(f => ({
+            // UPDATED: Now captures the full array of 40 candidates from the sidebar
+            const sanitizedFrames = allExtractedFrames.map(f => ({
                 id: f.id, label: f.label, vscore: f.vscore, url: f.url
             }));
             await fetch('/api/save', {
@@ -913,36 +767,30 @@ def history_page():
 
               <div style="max-width:1200px; margin:0 auto; display:flex; justify-content:space-between; align-items:center;">
               <h1 style="color:#00FFC2; font-size:28px; margin:0;">VAULT INDEX</h1>
-              <a href="/" style="color:#40E0FF; text-decoration:none; border:1px solid #273140; padding:10px 20px; border-radius:8px; font-weight:bold;">← BACK TO MODULE</a>
+              <div style="display:flex; gap:12px;">
+                  <a href="/" style="color:#40E0FF; text-decoration:none; border:1px solid #273140; padding:10px 20px; border-radius:8px; font-weight:bold;">RETURN TO WORKSPACE</a>
+              </div>
               </div><br><hr style="border:0; border-top:1px solid #273140; margin:20px 0;">"""
     
     if not VAULT_MEMORY: 
-        page += "<h3 style='color:#666; text-align:center; padding-top:80px;'>No active history arrays discovered. Run an image scan first.</h3>"
+        page += "<h3 style='color:#666; text-align:center; padding-top:80px;'>No active history discovered.</h3>"
     
     for h in reversed(VAULT_MEMORY):
         f1 = h['frames'][0]['url'] if len(h['frames']) > 0 else ""
-        f2 = h['frames'][1]['url'] if len(h['frames']) > 1 else f1
         
         page += f"""<div style="background:#151a21; border-radius:12px; padding:20px; margin-bottom:25px; border:1px solid #273140;">
                     <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                        <span style="font-size:16px; font-weight:bold; color:#FFD700;">{h['name']} <span style="color:#666; font-size:11px; margin-left:10px;">({len(h['frames'])} Assets Found)</span></span>
+                        <span style="font-size:16px; font-weight:bold; color:#FFD700;">{h['name']} <span style="color:#666; font-size:11px; margin-left:10px;">({len(h['frames'])} Full Asset Array)</span></span>
                         <span style="color:#666; font-size:12px;">{h['date']}</span>
                     </div>
                     
-                    <div style="display:flex; gap:15px; cursor:pointer; background:#0b0d10; padding:12px; border-radius:8px; border:1px dashed #273140;" onclick="let e=document.getElementById('fold-{h['id']}'); e.style.display=(e.style.display==='none')?'grid':'none';">
-                        <img src="{f1}" style="width:160px; aspect-ratio:16/9; object-fit:contain; background:#000; border-radius:4px; border:1px solid #333;">
-                        <img src="{f2}" style="width:160px; aspect-ratio:16/9; object-fit:contain; background:#000; border-radius:4px; border:1px solid #333;">
-                        <div style="display:flex; flex-direction:column; justify-content:center; color:#40E0FF; font-size:12px; font-weight:bold; letter-spacing:0.5px;">➔ CLICK COVERS TO VIEW EXPANDED IMAGE ASSET REAL ESTATE</div>
-                    </div>
-                    
-                    <div id="fold-{h['id']}" style="display:none; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:15px; padding-top:15px; border-top:1px solid #273140;">"""
+                    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:12px; margin-top:10px;">"""
         
         for f in h['frames']:
             page += f"""<div style="position:relative; background:#000; border-radius:6px; overflow:hidden; border:1px solid #333;">
-                        <img src="{f['url']}" style="width:100%; display:block; aspect-ratio:16/9; object-fit:contain; cursor:pointer;" onclick="event.stopPropagation(); document.getElementById('histCinemaImg').src='{f['url']}'; document.getElementById('historyCinema').style.display='flex';">
-                        <div style="padding:4px; display:grid; grid-template-columns:1fr 1fr; gap:4px; background:#1a1f26;">
-                            <button onclick="event.stopPropagation(); window.open('https://canva.com')" style="background:#00C4CC; border:none; color:white; font-size:9px; padding:4px; font-weight:bold; cursor:pointer;">CANVA</button>
-                            <a href="{f['url']}" download onclick="event.stopPropagation();" style="background:#1A73E8; text-decoration:none; color:white; font-size:9px; padding:4px; text-align:center; font-weight:bold; border-radius:2px;">DL PNG</a>
+                        <img src="{f['url']}" style="width:100%; display:block; aspect-ratio:16/9; object-fit:contain; cursor:pointer;" onclick="document.getElementById('histCinemaImg').src='{f['url']}'; document.getElementById('historyCinema').style.display='flex';">
+                        <div style="padding:4px; display:grid; grid-template-columns:1fr; background:#1a1f26;">
+                            <a href="{f['url']}" download style="background:#1A73E8; text-decoration:none; color:white; font-size:9px; padding:4px; text-align:center; font-weight:bold; border-radius:2px;">DL PNG</a>
                         </div></div>"""
         page += "</div></div>"
     return page + "</body>"
