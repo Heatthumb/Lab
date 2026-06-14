@@ -2,7 +2,20 @@ import os
 import time
 import json
 import random
+import base64
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
+
+# Automated package provisioning layer
+try:
+    import cv2
+    import numpy as np
+except ImportError:
+    import subprocess
+    import sys
+    print("Executing system hooks: Provisioning Core OpenCV Dependencies...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "opencv-python-headless", "numpy"])
+    import cv2
+    import numpy as np
 
 app = Flask(__name__)
 app.secret_key = "viral_studio_v103_autobooster_core"
@@ -571,41 +584,43 @@ HTML_TEMPLATE = """
                     </div>
 
                     <div style="margin-top:15px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                        <button class="btn-action" style="background:var(--purple-ai); color:white; grid-column: span 2;" onclick="executeAIAutoBoost(${i})">✨ RUN AI AUTO-BOOSTER</button>
+                        <button id="boost-btn-${i}" class="btn-action" style="background:var(--purple-ai); color:white; grid-column: span 2;" onclick="executeAIAutoBoost(${i})">✨ RUN AI AUTO-BOOSTER</button>
                         <button class="btn-action" style="background:var(--canva); color:white; grid-column: span 2;" onclick="window.open('https://canva.com')">EXPORT LAYOUT TO CANVA</button>
                     </div>
                 </div>
             `}).join('');
         }
 
-        function executeAIAutoBoost(idx) {
+        async function executeAIAutoBoost(idx) {
             const frame = workspaceFrames[idx];
-            const imgElement = document.getElementById(`bg-img-${idx}`);
-            if (!imgElement) return;
+            const btn = document.getElementById(`boost-btn-${idx}`);
+            if(btn) {
+                btn.innerText = "PROCESSING MATRIX...";
+                btn.style.opacity = "0.6";
+                btn.disabled = true;
+            }
 
-            const canvas = document.createElement('canvas');
-            canvas.width = imgElement.naturalWidth || imgElement.width;
-            canvas.height = imgElement.naturalHeight || imgElement.height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(imgElement, 0, 0, canvas.width, canvas.height);
-
-            ctx.globalCompositeOperation = 'multiply';
-            ctx.fillStyle = 'rgba(12, 16, 26, 0.18)'; 
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.globalCompositeOperation = 'screen';
-            const gradient = ctx.createRadialGradient(canvas.width*0.5, canvas.height*0.45, 5, canvas.width*0.5, canvas.height*0.45, canvas.width*0.45);
-            gradient.addColorStop(0, 'rgba(64, 224, 255, 0.28)'); 
-            gradient.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            frame.currentUrl = canvas.toDataURL('image/jpeg', 0.94);
-            renderAll();
-            
-            setTimeout(() => {
-                alert(`✨ AI BOOSTER MATRIX ENGAGED\\n\\nBackground salience layers muted (-18% exposure attenuation).\\nRadial subject spotlight contrast scaling loops applied completely via server opencv filters.\\n\\nRetention metric shift 98.4% ➔ 98.4%`);
-            }, 100);
+            try {
+                const response = await fetch('/api/boost', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ image: frame.currentUrl })
+                });
+                const resData = await response.json();
+                
+                if(resData.status === 'success') {
+                    frame.currentUrl = resData.boosted_image;
+                    renderAll();
+                    setTimeout(() => {
+                        alert(`✨ AI BOOSTER MATRIX ENGAGED\\n\\nBackground exposure attenuation (-18%) successfully computed via server OpenCV pipelines.\\nRadial subject focus masks applied to native assets.`);
+                    }, 50);
+                } else {
+                    alert("Booster communication fault. Reverting pipeline.");
+                }
+            } catch(e) {
+                console.error(e);
+                alert("Server processing exception encountered.");
+            }
         }
 
         function showCinema(url) {
@@ -627,6 +642,52 @@ HTML_TEMPLATE = """
 </body>
 </html>
 """
+
+@app.route('/api/boost', methods=['POST'])
+def boost_api():
+    try:
+        data = request.json
+        img_str = data['image']
+        
+        # Isolate baseline characters from header
+        header, encoded = img_str.split(",", 1)
+        img_bytes = base64.b64decode(encoded)
+        
+        # Decode directly to OpenCV image canvas matrix array
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        h, w, c = img.shape
+
+        # Step 1: Background Exposure Attenuation Layer (-18% exposure mapping)
+        invGamma = 1.0 / 0.82
+        lut_table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
+        bg_muted = cv2.LUT(img, lut_table)
+
+        # Step 2: Radial Subject Spotlight Mask Generation
+        mask = np.zeros((h, w), dtype=np.uint8)
+        center_x, center_y = int(w * 0.5), int(h * 0.45)
+        radius = int(min(w, h) * 0.4)
+        
+        cv2.circle(mask, (center_x, center_y), radius, 255, -1)
+        mask_blur = cv2.GaussianBlur(mask, (101, 101), 0) / 255.0
+        mask_blur = cv2.merge([mask_blur, mask_blur, mask_blur])
+
+        # Step 3: Localized Contrast Enhancement Loops
+        subject_boosted = cv2.convertScaleAbs(img, alpha=1.12, beta=8)
+
+        # Composite Layer Blending
+        final_canvas = (subject_boosted * mask_blur + bg_muted * (1.0 - mask_blur)).astype(np.uint8)
+
+        # Re-encode image matrix to delivery stream
+        _, buffer = cv2.imencode('.jpg', final_canvas, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
+        encoded_output = base64.b64encode(buffer).decode('utf-8')
+        
+        return jsonify({
+            "status": "success",
+            "boosted_image": f"data:image/jpeg;base64,{encoded_output}"
+        })
+    except Exception as err:
+        return jsonify({"status": "error", "msg": str(err)}), 400
 
 @app.route('/api/save', methods=['POST'])
 def save_api():
