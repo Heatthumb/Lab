@@ -192,30 +192,6 @@ HTML_TEMPLATE = """
             display: block;
         }
 
-        .canvas-label-badge {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 9px;
-            font-weight: 900;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            z-index: 5;
-        }
-
-        .heatmap-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 2;
-            pointer-events: none;
-            display: none;
-        }
-
         /* Dropdown Filtering Controllers */
         .selector-dropdown {
             background: #0b0d10;
@@ -257,62 +233,6 @@ HTML_TEMPLATE = """
 
         .btn-action:active {
             transform: translateY(0);
-        }
-
-        /* Analysis Box Presentations */
-        .canva-guide-box {
-            margin-top: 12px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 8px;
-            padding: 12px;
-        }
-
-        .blueprint-container {
-            margin-top: 10px;
-            background: #0b0d10;
-            border-radius: 6px;
-            padding: 10px;
-            border: 1px solid rgba(255,255,255,0.02);
-        }
-
-        .blueprint-title {
-            font-size: 10px;
-            font-weight: 900;
-            color: var(--gold);
-            margin-bottom: 8px;
-            letter-spacing: 0.5px;
-        }
-
-        .blueprint-row {
-            font-size: 11px;
-            font-family: 'Courier New', monospace;
-            padding: 4px 0;
-            color: #b5c4d6;
-            display: flex;
-            gap: 8px;
-        }
-
-        .blueprint-clickable {
-            color: var(--mint);
-            font-weight: bold;
-        }
-
-        .canva-badge {
-            background: var(--canva);
-            color: white;
-            font-size: 9px;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-weight: 900;
-        }
-
-        .traffic-badge {
-            background: var(--gold);
-            color: black;
-            font-size: 9px;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-weight: 900;
         }
 
         /* Mechanical Progress Systems */
@@ -410,7 +330,7 @@ HTML_TEMPLATE = """
         <div class="workspace-header">
             <div>
                 <h2 style="margin:0; font-weight:900; font-size:22px; color:#fff;">WORKSPACE OVERVIEW</h2>
-                <p style="margin:5px 0 0 0; font-size:12px; color:var(--text-muted);">Run visual diagnostics or execute immediate AI optimization curves</p>
+                <p style="margin:5px 0 0 0; font-size:12px; color:var(--text-muted);">Execute immediate AI optimization and background attenuation loops</p>
             </div>
             <div style="display:flex; gap:12px;">
                 <a href="/history" style="text-decoration:none;" class="btn-action" style="background:transparent; border:1px solid var(--border); color:var(--text-main);">VIEW HISTORIC VAULT</a>
@@ -548,7 +468,7 @@ HTML_TEMPLATE = """
                 if(progress) progress.style.width = '0%';
                 renderSidebar();
                 renderAll();
-                saveToHistory(file.name); // Now saves everything in allExtractedFrames
+                saveToHistory(file.name); 
             }, 400);
         }
 
@@ -584,7 +504,6 @@ HTML_TEMPLATE = """
                     <div class="bank-item">
                         <span class="bank-meta" style="display:flex; justify-content:space-between;">
                             <span>${f.label}</span>
-                            <span style="color:var(--gold)">Score: ${f.vscore}%</span>
                         </span>
                         <img src="${f.originalUrl}" class="bank-img" onclick="showCinema('${f.originalUrl}')">
                         <div style="padding:10px;">
@@ -634,9 +553,9 @@ HTML_TEMPLATE = """
 
                 return `
                 <div class="editor-card">
-                    <div style="display:flex; justify-content:between; align-items:center; margin-bottom:14px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
                         <span style="color:var(--mint); font-weight:900; font-size:12px; letter-spacing:0.5px;">
-                            ${f.label} — PERFORMANCE RATIO: <span id="vscore-val-${i}">${f.vscore}</span>%
+                            ${f.label}
                         </span>
                         
                         <div style="display:flex; gap:10px; align-items:center;">
@@ -649,46 +568,14 @@ HTML_TEMPLATE = """
 
                     <div class="canvas-container-box" id="canvas-wrap-${i}">
                         <img src="${f.currentUrl}" class="comparison-img" id="bg-img-${i}" onclick="showCinema('${f.currentUrl}')">
-                        <canvas id="canvas-hm-${i}" class="heatmap-layer"></canvas>
-                    </div>
-                    
-                    <div id="analysis-box-${i}" style="display:none; margin-top:15px; background:rgba(0,0,0,0.85); padding:16px; border-radius:8px; font-size:12px; border-left:3px solid var(--blue); line-height:1.4; color:#E9EEF5;">
-                        <b style="color:var(--blue); font-size:13px; display:block; margin-bottom:6px;">ATTENTION TRACKING METRICS:</b>
-                        <span id="analysis-text-${i}"></span>
-                        <div id="canva-guide-${i}" class="canva-guide-box"></div>
                     </div>
 
                     <div style="margin-top:15px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                        <button class="btn-action" style="background:var(--blue); color:#000; grid-column: span 2;" onclick="triggerAnalysisSequence(${i}, ${f.vscore})">ANALYZE ATTENTION FLOW MAP</button>
-                        <button class="btn-action" style="background:var(--purple-ai); color:white;" onclick="executeAIAutoBoost(${i})">✨ RUN AI AUTO-BOOSTER</button>
-                        <button class="btn-action" style="background:var(--canva); color:white;" onclick="window.open('https://canva.com')">EXPORT LAYOUT TO CANVA</button>
+                        <button class="btn-action" style="background:var(--purple-ai); color:white; grid-column: span 2;" onclick="executeAIAutoBoost(${i})">✨ RUN AI AUTO-BOOSTER</button>
+                        <button class="btn-action" style="background:var(--canva); color:white; grid-column: span 2;" onclick="window.open('https://canva.com')">EXPORT LAYOUT TO CANVA</button>
                     </div>
                 </div>
             `}).join('');
-        }
-
-        function triggerAnalysisSequence(idx, score) {
-            const selectedType = workspaceFrames[idx].contentType;
-            const canvas = document.getElementById(`canvas-hm-${idx}`);
-            const imgElement = document.getElementById(`bg-img-${idx}`);
-            if(!canvas || !imgElement) return;
-
-            const ctx = canvas.getContext('2d');
-            canvas.width = canvas.parentElement.offsetWidth; 
-            canvas.height = canvas.parentElement.offsetHeight;
-            ctx.clearRect(0, 0, canvas.width, canvas.height); 
-            canvas.style.display = "block";
-
-            let coreX = canvas.width * 0.5; 
-            let coreY = canvas.height * 0.45;
-
-            ctx.strokeStyle = "rgba(0, 255, 194, 0.95)";
-            ctx.lineWidth = 2;
-            const size = 30; 
-            ctx.strokeRect(coreX-size, coreY-size, size*2, size*2);
-            
-            document.getElementById(`analysis-text-${idx}`).innerText = "Visual traversal lines run clean. Exceptional retention base.";
-            document.getElementById(`analysis-box-${idx}`).style.display = "block";
         }
 
         function executeAIAutoBoost(idx) {
@@ -713,10 +600,7 @@ HTML_TEMPLATE = """
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            const upgradedScore = 98.4;
             frame.currentUrl = canvas.toDataURL('image/jpeg', 0.94);
-            frame.vscore = upgradedScore;
-
             renderAll();
             
             setTimeout(() => {
@@ -730,7 +614,6 @@ HTML_TEMPLATE = """
         }
 
         async function saveToHistory(name) {
-            // UPDATED: Now captures the full array of 40 candidates from the sidebar
             const sanitizedFrames = allExtractedFrames.map(f => ({
                 id: f.id, label: f.label, vscore: f.vscore, url: f.url
             }));
@@ -776,8 +659,6 @@ def history_page():
         page += "<h3 style='color:#666; text-align:center; padding-top:80px;'>No active history discovered.</h3>"
     
     for h in reversed(VAULT_MEMORY):
-        f1 = h['frames'][0]['url'] if len(h['frames']) > 0 else ""
-        
         page += f"""<div style="background:#151a21; border-radius:12px; padding:20px; margin-bottom:25px; border:1px solid #273140;">
                     <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
                         <span style="font-size:16px; font-weight:bold; color:#FFD700;">{h['name']} <span style="color:#666; font-size:11px; margin-left:10px;">({len(h['frames'])} Full Asset Array)</span></span>
