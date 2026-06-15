@@ -6,7 +6,7 @@ import base64
 import sys
 import subprocess
 
-# Auto-provision core dependencies (No complex AI binaries required)
+# Auto-provision core dependencies
 required_packages = ["opencv-python-headless", "numpy", "Flask"]
 missing_packages = []
 
@@ -33,7 +33,7 @@ ACCESS_PASSWORD = "Heathumb2026"
 
 VAULT_MEMORY = []
 
-# Fetch the native internal front-facing tracking matrix from OpenCV's source build maps
+# OpenCV Frontal Face Cascade Layer
 HAAR_FACE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 HTML_TEMPLATE = """
@@ -395,7 +395,7 @@ HTML_TEMPLATE = """
                         <p style="color:var(--text-muted); font-size:12px; margin-bottom:15px;">No video elements ingested yet.</p>
                         <div style="background:rgba(0, 255, 194, 0.03); border:1px dashed var(--border); border-radius:12px; padding:12px; font-size:11px; text-align:left; color:#b5c4d6; line-height:1.4;">
                             🛡️ <b>Multi-System Funnel Rules:</b><br>
-                            • Discards blur & motion sweeps<br>
+                            • Filter opened up to capture soft shots<br>
                             • Scores composition metrics via native cascades<br>
                             • Displays candidate pool inside sidebar<br>
                         </div>
@@ -410,7 +410,7 @@ HTML_TEMPLATE = """
                         <b style="color:#fff; margin-left:auto;">${userVideoUploadCount} Videos Processed</b>
                     </div>
                 </div>
-                <h3 style="font-size:11px; font-weight:900; color:var(--text-muted); text-transform:uppercase; margin:0 0 10px 0; letter-spacing:0.5px;">Filtered Candidate Pool</h3>
+                <h3 style="font-size:11px; font-weight:900; color:var(--text-muted); text-transform:uppercase; margin:0 0 10px 0; letter-spacing:0.5px;">Filtered Candidate Pool (${allExtractedFrames.length} Frames Found)</h3>
             `;
 
             let itemsHtml = allExtractedFrames.map((f, i) => {
@@ -550,63 +550,58 @@ def api_ingest():
     
     try:
         cap = cv2.VideoCapture(temp_path)
-        fps = cap.get(cv2.CAP_PROP_FPS) or 30
         
         all_candidates = []
         last_hist = None
         frame_idx = 0
+        
+        # Slices frame gaps tighter to search deeper inside soft/blurry source videos
+        frame_sample_stride = 10 
         
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
                 break
                 
-            # Coarse sample filter loop: inspect 2 frames per second to reduce CPU workload
-            if frame_idx % int(fps / 2) == 0:
+            if frame_idx % frame_sample_stride == 0:
                 h, w, _ = frame.shape
                 
-                # System 1: Scene Cut Evaluation via Color Histogram shifts
+                # System 1: Distinct Cut Tracking Matrix
                 hist = cv2.calcHist([frame], [0, 1, 2], None, [4, 4, 4], [0, 256, 0, 256, 0, 256])
                 cv2.normalize(hist, hist)
                 
-                is_scene_change = True
+                is_distinct_scene = True
                 if last_hist is not None:
                     similarity = cv2.compareHist(hist, last_hist, cv2.HISTCMP_CORREL)
-                    if similarity > 0.75:
-                        is_scene_change = False
+                    # Low sensitivity drop allows closely sequenced frames to get loaded
+                    if similarity > 0.88:
+                        is_distinct_scene = False
                         
-                if is_scene_change or frame_idx == 0:
+                if is_distinct_scene or frame_idx == 0:
                     last_hist = hist
                     
-                    # System 2: Technical validation (Blur checking via Laplacian variance)
+                    # System 2: Technical validation (Adjusted lower cutoff limit down to 15.0)
                     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                     blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
                     
-                    if blur_score >= 65.0: 
+                    if blur_score >= 15.0: 
                         
-                        # System 3 & 4: Stable Native Haar Matrix Assessment (Replaces problematic MediaPipe)
-                        faces = HAAR_FACE_CASCADE.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=4, minSize=(40, 40))
-                        
+                        # System 3 & 4: Native Cascade Subject Evaluator
+                        faces = HAAR_FACE_CASCADE.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=3, minSize=(30, 30))
                         aesthetic_score = 40.0
                         
                         if len(faces) > 0:
-                            # Pull the largest face structure detected in the viewport loop
                             largest_face = max(faces, key=lambda f: f[2] * f[3])
                             fx, fy, fw, fh = largest_face
-                            
-                            # Measure how close the subject is relative to powerful center rule framing rules
                             cx = (fx + (fw / 2)) / w
                             cy = (fy + (fh / 2)) / h
                             composition_bonus = 1.0 - (abs(cx - 0.5) + abs(cy - 0.45))
-                            
-                            # Formulate an integrated score value based on image contrast stability and placement values
                             contrast_factor = min(np.std(gray) / 1.5, 45.0)
                             aesthetic_score = 45.0 + contrast_factor + (composition_bonus * 20)
                         else:
-                            # Scenic/Text asset handling balance score mechanics
-                            aesthetic_score = float(np.clip(blur_score / 5.5, 35.0, 80.0))
+                            aesthetic_score = float(np.clip(blur_score * 1.5, 30.0, 85.0))
 
-                        _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+                        _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
                         b64_data = base64.b64encode(buffer).decode('utf-8')
                         data_url = f"data:image/jpeg;base64,{b64_data}"
                         
@@ -616,7 +611,7 @@ def api_ingest():
                             "originalUrl": data_url,
                             "currentUrl": data_url,
                             "vscore": aesthetic_score,
-                            "label": f"Scene Candidate ({(frame_idx/fps):.1f}s)",
+                            "label": f"Frame Target Asset ({frame_idx})",
                             "contentType": "Talking Head Vlog"
                         })
                         
@@ -629,17 +624,19 @@ def api_ingest():
             pass
 
         if not all_candidates:
-            return jsonify({"status": "error", "msg": "No frames cleared technical quality checks."}), 400
+            return jsonify({"status": "error", "msg": "No frames matched the processing threshold filter loops."}), 400
 
+        # Sort from highest aesthetic/clarity rank to lowest
         all_candidates.sort(key=lambda x: x['vscore'], reverse=True)
         
+        # Pull up to 6 for the workspace grid layout assembly
         top_6_raw = all_candidates[:6]
         top_6_picks = []
         for item in top_6_raw:
             top_6_picks.append({
                 **item,
                 "id": f"ws_auto_{random.randint(100,999)}",
-                "label": f"✨ AUTO-PICK: {item['label']}"
+                "label": f"✨ AUTO-GRID: {item['label']}"
             })
             
         VIDEO_UPLOAD_COUNT += 1
