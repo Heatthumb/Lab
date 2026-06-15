@@ -30,10 +30,6 @@ import numpy as np
 import mediapipe as mp
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
 
-# Initialize MediaPipe Face Detection
-mp_face_detection = mp.solutions.face_detection
-face_detection = mp_face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.55)
-
 app = Flask(__name__)
 app.secret_key = "viral_studio_v103_autobooster_core"
 ACCESS_PASSWORD = "Heathumb2026"
@@ -270,7 +266,7 @@ HTML_TEMPLATE = """
 
         .loader-bar-fill {
             height: 100%;
-            width: 0%;
+            width: 100%;
             background: linear-gradient(90deg, var(--blue), var(--mint));
         }
 
@@ -339,7 +335,7 @@ HTML_TEMPLATE = """
             <input type="file" id="imgInp" accept="image/*,video/*" style="display:none" onchange="uploadAndProcessMedia()">
             
             <div class="loader-bar-wrap" id="loadingBar">
-                <div class="loader-bar-fill" id="progress" style="width: 100%;"></div>
+                <div class="loader-bar-fill" id="progress"></div>
             </div>
         </div>
         <div id="frameBank"></div>
@@ -566,7 +562,6 @@ def api_ingest():
     if file.filename == '':
         return jsonify({"status": "error", "msg": "Empty filename space"}), 400
 
-    # Temporary write target location to read through OpenCV frames tracking
     temp_path = os.path.join("/tmp" if os.name != 'nt' else "C:\\Windows\\Temp", file.filename)
     file.save(temp_path)
     
@@ -578,72 +573,76 @@ def api_ingest():
         last_hist = None
         frame_idx = 0
         
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
-                
-            # Coarse sample filter loop: inspect 2 frames per second to save server computing overhead
-            if frame_idx % int(fps / 2) == 0:
-                h, w, _ = frame.shape
-                
-                # System 1: Scene Cut Evaluation via Color Histogram shifts
-                hist = cv2.calcHist([frame], [0, 1, 2], None, [4, 4, 4], [0, 256, 0, 256, 0, 256])
-                cv2.normalize(hist, hist)
-                
-                is_scene_change = True
-                if last_hist is not None:
-                    similarity = cv2.compareHist(hist, last_hist, cv2.HISTCMP_CORREL)
-                    if similarity > 0.75:
-                        is_scene_change = False
-                        
-                if is_scene_change or frame_idx == 0:
-                    last_hist = hist
-                    
-                    # System 2: Technical validation (Blur metrics checking via Laplacian variance)
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
-                    
-                    if blur_score >= 70.0: # Filter blurred frame sequences out completely
-                        
-                        # System 3 & 4: Face expression validation and layout rule alignment via MediaPipe
-                        rgb_mat = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                        mp_res = face_detection.process(rgb_mat)
-                        
-                        aesthetic_score = 40.0 # Default base baseline
-                        
-                        if mp_res.detections:
-                            for det in mp_res.detections:
-                                bbox = det.location_data.relative_bounding_box
-                                cx = bbox.xmin + (bbox.width / 2)
-                                cy = bbox.ymin + (bbox.height / 2)
-                                
-                                # Higher prioritization rule bias if subjects are framed cleanly in the center viewport
-                                composition_bonus = 1.0 - (abs(cx - 0.5) + abs(cy - 0.45))
-                                det_confidence = det.score[0]
-                                aesthetic_score = (det_confidence * 50) + (composition_bonus * 50)
-                                break
-                        else:
-                            # Random baseline variation adjustments if no clear face exists to allow structural scenic assets
-                            aesthetic_score = float(np.clip(blur_score / 6.0, 40.0, 85.0))
-
-                        # Encode frame down to memory stream
-                        _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
-                        b64_data = base64.b64encode(buffer).decode('utf-8')
-                        data_url = f"data:image/jpeg;base64,{b64_data}"
-                        
-                        all_candidates.append({
-                            "id": f"frame_{int(time.time())}_{frame_idx}",
-                            "url": data_url,
-                            "originalUrl": data_url,
-                            "currentUrl": data_url,
-                            "vscore": aesthetic_score,
-                            "label": f"Scene Cut Candidate ({(frame_idx/fps):.1f}s)",
-                            "contentType": "Talking Head Vlog"
-                        })
-                        
-            frame_idx += 1
+        # FIX: Spawning a Thread-Isolated Context Manager Instance for this specific request loop
+        mp_face_detection = mp.solutions.face_detection
+        with mp_face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.55) as face_detector:
             
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                    
+                # Coarse sample filter loop: inspect 2 frames per second to save computation time
+                if frame_idx % int(fps / 2) == 0:
+                    h, w, _ = frame.shape
+                    
+                    # System 1: Scene Cut Evaluation via Color Histogram shifts
+                    hist = cv2.calcHist([frame], [0, 1, 2], None, [4, 4, 4], [0, 256, 0, 256, 0, 256])
+                    cv2.normalize(hist, hist)
+                    
+                    is_scene_change = True
+                    if last_hist is not None:
+                        similarity = cv2.compareHist(hist, last_hist, cv2.HISTCMP_CORREL)
+                        if similarity > 0.75:
+                            is_scene_change = False
+                            
+                    if is_scene_change or frame_idx == 0:
+                        last_hist = hist
+                        
+                        # System 2: Technical validation (Blur checking via Laplacian variance)
+                        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                        blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
+                        
+                        if blur_score >= 70.0: 
+                            
+                            # System 3 & 4: Face validation and layout composition via localized inference
+                            rgb_mat = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                            mp_res = face_detector.process(rgb_mat)
+                            
+                            aesthetic_score = 40.0 
+                            
+                            # FIX: Safe data check parameters to prevent attribute errors on frames without faces
+                            if mp_res and mp_res.detections:
+                                for det in mp_res.detections:
+                                    if not det.location_data or not det.location_data.relative_bounding_box:
+                                        continue
+                                    bbox = det.location_data.relative_bounding_box
+                                    cx = bbox.xmin + (bbox.width / 2)
+                                    cy = bbox.ymin + (bbox.height / 2)
+                                    
+                                    composition_bonus = 1.0 - (abs(cx - 0.5) + abs(cy - 0.45))
+                                    det_confidence = det.score[0] if det.score else 0.5
+                                    aesthetic_score = (det_confidence * 50) + (composition_bonus * 50)
+                                    break
+                            else:
+                                aesthetic_score = float(np.clip(blur_score / 6.0, 40.0, 85.0))
+
+                            _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+                            b64_data = base64.b64encode(buffer).decode('utf-8')
+                            data_url = f"data:image/jpeg;base64,{b64_data}"
+                            
+                            all_candidates.append({
+                                "id": f"frame_{int(time.time())}_{frame_idx}",
+                                "url": data_url,
+                                "originalUrl": data_url,
+                                "currentUrl": data_url,
+                                "vscore": aesthetic_score,
+                                "label": f"Scene Candidate ({(frame_idx/fps):.1f}s)",
+                                "contentType": "Talking Head Vlog"
+                            })
+                            
+                frame_idx += 1
+                
         cap.release()
         try:
             os.remove(temp_path)
@@ -651,12 +650,10 @@ def api_ingest():
             pass
 
         if not all_candidates:
-            return jsonify({"status": "error", "msg": "No frames cleared technical quality checks. Try a cleaner video."}), 400
+            return jsonify({"status": "error", "msg": "No frames cleared technical quality checks."}), 400
 
-        # Sort candidate frames array based on system evaluation score
         all_candidates.sort(key=lambda x: x['vscore'], reverse=True)
         
-        # Pull top 6 elements cleanly inside workspace layout grid automatically
         top_6_raw = all_candidates[:6]
         top_6_picks = []
         for item in top_6_raw:
@@ -668,7 +665,6 @@ def api_ingest():
             
         VIDEO_UPLOAD_COUNT += 1
         
-        # Save historical vault record entry trace logs
         VAULT_MEMORY.append({
             'id': str(random.randint(100000, 999999)),
             'name': file.filename, 
@@ -685,7 +681,10 @@ def api_ingest():
         
     except Exception as e:
         if os.path.exists(temp_path):
-            os.remove(temp_path)
+            try:
+                os.remove(temp_path)
+            except:
+                pass
         return jsonify({"status": "error", "msg": str(e)}), 500
 
 @app.route('/api/boost', methods=['POST'])
@@ -701,12 +700,10 @@ def boost_api():
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         h, w, c = img.shape
 
-        # Step 1: Background Exposure Attenuation (-18% exposure light compression matrix mapping)
         invGamma = 1.0 / 0.82
         lut_table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
         bg_muted = cv2.LUT(img, lut_table)
 
-        # Step 2: Radial Spotlight Mask Layer Generation
         mask = np.zeros((h, w), dtype=np.uint8)
         center_x, center_y = int(w * 0.5), int(h * 0.45)
         radius = int(min(w, h) * 0.4)
@@ -715,10 +712,7 @@ def boost_api():
         mask_blur = cv2.GaussianBlur(mask, (101, 101), 0) / 255.0
         mask_blur = cv2.merge([mask_blur, mask_blur, mask_blur])
 
-        # Step 3: Localized Contrast Expansion Loops
         subject_boosted = cv2.convertScaleAbs(img, alpha=1.12, beta=8)
-
-        # Blended composition matrix output conversion
         final_canvas = (subject_boosted * mask_blur + bg_muted * (1.0 - mask_blur)).astype(np.uint8)
 
         _, buffer = cv2.imencode('.jpg', final_canvas, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
