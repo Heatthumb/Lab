@@ -6,36 +6,35 @@ import base64
 import sys
 import subprocess
 
-# Automated package provisioning layer for all advanced video processing pipelines
-required_packages = ["opencv-python-headless", "numpy", "mediapipe", "Flask"]
+# Auto-provision core dependencies (No complex AI binaries required)
+required_packages = ["opencv-python-headless", "numpy", "Flask"]
 missing_packages = []
 
 for pkg in required_packages:
     try:
         if pkg == "opencv-python-headless":
             import cv2
-        elif pkg == "mediapipe":
-            import mediapipe as mp
         else:
             __import__(pkg)
     except ImportError:
         missing_packages.append(pkg)
 
 if missing_packages:
-    print(f"Executing system hooks: Provisioning Core Dependencies {missing_packages}...")
+    print(f"Provisioning stable processing stack: {missing_packages}...")
     subprocess.check_call([sys.executable, "-m", "pip", "install"] + missing_packages)
 
 import cv2
 import numpy as np
-import mediapipe as mp
 from flask import Flask, request, jsonify, render_template_string, session, redirect, url_for
 
 app = Flask(__name__)
 app.secret_key = "viral_studio_v103_autobooster_core"
 ACCESS_PASSWORD = "Heathumb2026"
 
-# Permanent session running history ledger
 VAULT_MEMORY = []
+
+# Fetch the native internal front-facing tracking matrix from OpenCV's source build maps
+HAAR_FACE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -112,14 +111,6 @@ HTML_TEMPLATE = """
             overflow-y: auto;
             padding: 20px;
             background: rgba(0,0,0,0.15);
-        }
-
-        #frameBank::-webkit-scrollbar {
-            width: 6px;
-        }
-        #frameBank::-webkit-scrollbar-thumb {
-            background: var(--border);
-            border-radius: 3px;
         }
 
         .bank-item {
@@ -225,10 +216,6 @@ HTML_TEMPLATE = """
             outline: none;
         }
 
-        .selector-dropdown:focus {
-            border-color: var(--mint);
-        }
-
         .btn-action {
             border: none;
             padding: 14px 20px;
@@ -248,10 +235,6 @@ HTML_TEMPLATE = """
         .btn-action:hover {
             filter: brightness(1.1);
             transform: translateY(-1px);
-        }
-
-        .btn-action:active {
-            transform: translateY(0);
         }
 
         .loader-bar-wrap {
@@ -413,7 +396,7 @@ HTML_TEMPLATE = """
                         <div style="background:rgba(0, 255, 194, 0.03); border:1px dashed var(--border); border-radius:12px; padding:12px; font-size:11px; text-align:left; color:#b5c4d6; line-height:1.4;">
                             🛡️ <b>Multi-System Funnel Rules:</b><br>
                             • Discards blur & motion sweeps<br>
-                            • Scores human face metrics & layout alignment<br>
+                            • Scores composition metrics via native cascades<br>
                             • Displays candidate pool inside sidebar<br>
                         </div>
                     </div>`;
@@ -573,76 +556,72 @@ def api_ingest():
         last_hist = None
         frame_idx = 0
         
-        # FIX: Spawning a Thread-Isolated Context Manager Instance for this specific request loop
-        mp_face_detection = mp.solutions.face_detection
-        with mp_face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.55) as face_detector:
-            
-            while cap.isOpened():
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                    
-                # Coarse sample filter loop: inspect 2 frames per second to save computation time
-                if frame_idx % int(fps / 2) == 0:
-                    h, w, _ = frame.shape
-                    
-                    # System 1: Scene Cut Evaluation via Color Histogram shifts
-                    hist = cv2.calcHist([frame], [0, 1, 2], None, [4, 4, 4], [0, 256, 0, 256, 0, 256])
-                    cv2.normalize(hist, hist)
-                    
-                    is_scene_change = True
-                    if last_hist is not None:
-                        similarity = cv2.compareHist(hist, last_hist, cv2.HISTCMP_CORREL)
-                        if similarity > 0.75:
-                            is_scene_change = False
-                            
-                    if is_scene_change or frame_idx == 0:
-                        last_hist = hist
-                        
-                        # System 2: Technical validation (Blur checking via Laplacian variance)
-                        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                        blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
-                        
-                        if blur_score >= 70.0: 
-                            
-                            # System 3 & 4: Face validation and layout composition via localized inference
-                            rgb_mat = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                            mp_res = face_detector.process(rgb_mat)
-                            
-                            aesthetic_score = 40.0 
-                            
-                            # FIX: Safe data check parameters to prevent attribute errors on frames without faces
-                            if mp_res and mp_res.detections:
-                                for det in mp_res.detections:
-                                    if not det.location_data or not det.location_data.relative_bounding_box:
-                                        continue
-                                    bbox = det.location_data.relative_bounding_box
-                                    cx = bbox.xmin + (bbox.width / 2)
-                                    cy = bbox.ymin + (bbox.height / 2)
-                                    
-                                    composition_bonus = 1.0 - (abs(cx - 0.5) + abs(cy - 0.45))
-                                    det_confidence = det.score[0] if det.score else 0.5
-                                    aesthetic_score = (det_confidence * 50) + (composition_bonus * 50)
-                                    break
-                            else:
-                                aesthetic_score = float(np.clip(blur_score / 6.0, 40.0, 85.0))
-
-                            _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
-                            b64_data = base64.b64encode(buffer).decode('utf-8')
-                            data_url = f"data:image/jpeg;base64,{b64_data}"
-                            
-                            all_candidates.append({
-                                "id": f"frame_{int(time.time())}_{frame_idx}",
-                                "url": data_url,
-                                "originalUrl": data_url,
-                                "currentUrl": data_url,
-                                "vscore": aesthetic_score,
-                                "label": f"Scene Candidate ({(frame_idx/fps):.1f}s)",
-                                "contentType": "Talking Head Vlog"
-                            })
-                            
-                frame_idx += 1
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
                 
+            # Coarse sample filter loop: inspect 2 frames per second to reduce CPU workload
+            if frame_idx % int(fps / 2) == 0:
+                h, w, _ = frame.shape
+                
+                # System 1: Scene Cut Evaluation via Color Histogram shifts
+                hist = cv2.calcHist([frame], [0, 1, 2], None, [4, 4, 4], [0, 256, 0, 256, 0, 256])
+                cv2.normalize(hist, hist)
+                
+                is_scene_change = True
+                if last_hist is not None:
+                    similarity = cv2.compareHist(hist, last_hist, cv2.HISTCMP_CORREL)
+                    if similarity > 0.75:
+                        is_scene_change = False
+                        
+                if is_scene_change or frame_idx == 0:
+                    last_hist = hist
+                    
+                    # System 2: Technical validation (Blur checking via Laplacian variance)
+                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
+                    
+                    if blur_score >= 65.0: 
+                        
+                        # System 3 & 4: Stable Native Haar Matrix Assessment (Replaces problematic MediaPipe)
+                        faces = HAAR_FACE_CASCADE.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=4, minSize=(40, 40))
+                        
+                        aesthetic_score = 40.0
+                        
+                        if len(faces) > 0:
+                            # Pull the largest face structure detected in the viewport loop
+                            largest_face = max(faces, key=lambda f: f[2] * f[3])
+                            fx, fy, fw, fh = largest_face
+                            
+                            # Measure how close the subject is relative to powerful center rule framing rules
+                            cx = (fx + (fw / 2)) / w
+                            cy = (fy + (fh / 2)) / h
+                            composition_bonus = 1.0 - (abs(cx - 0.5) + abs(cy - 0.45))
+                            
+                            # Formulate an integrated score value based on image contrast stability and placement values
+                            contrast_factor = min(np.std(gray) / 1.5, 45.0)
+                            aesthetic_score = 45.0 + contrast_factor + (composition_bonus * 20)
+                        else:
+                            # Scenic/Text asset handling balance score mechanics
+                            aesthetic_score = float(np.clip(blur_score / 5.5, 35.0, 80.0))
+
+                        _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+                        b64_data = base64.b64encode(buffer).decode('utf-8')
+                        data_url = f"data:image/jpeg;base64,{b64_data}"
+                        
+                        all_candidates.append({
+                            "id": f"frame_{int(time.time())}_{frame_idx}",
+                            "url": data_url,
+                            "originalUrl": data_url,
+                            "currentUrl": data_url,
+                            "vscore": aesthetic_score,
+                            "label": f"Scene Candidate ({(frame_idx/fps):.1f}s)",
+                            "contentType": "Talking Head Vlog"
+                        })
+                        
+            frame_idx += 1
+            
         cap.release()
         try:
             os.remove(temp_path)
