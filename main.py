@@ -394,10 +394,10 @@ HTML_TEMPLATE = """
                     <div style="padding:20px 10px; text-align:center;">
                         <p style="color:var(--text-muted); font-size:12px; margin-bottom:15px;">No video elements ingested yet.</p>
                         <div style="background:rgba(0, 255, 194, 0.03); border:1px dashed var(--border); border-radius:12px; padding:12px; font-size:11px; text-align:left; color:#b5c4d6; line-height:1.4;">
-                            🛡️ <b>Multi-System Funnel Rules:</b><br>
-                            • Filter opened up to capture soft shots<br>
-                            • Scores composition metrics via native cascades<br>
-                            • Displays candidate pool inside sidebar<br>
+                            🛡️ <b>Memory-Optimized Funnel Rules:</b><br>
+                            • Holds top 24 elite visual frames<br>
+                            • Fully drop-proof background processing<br>
+                            • Displays distinct pool choices inside sidebar<br>
                         </div>
                     </div>`;
                 return;
@@ -410,7 +410,7 @@ HTML_TEMPLATE = """
                         <b style="color:#fff; margin-left:auto;">${userVideoUploadCount} Videos Processed</b>
                     </div>
                 </div>
-                <h3 style="font-size:11px; font-weight:900; color:var(--text-muted); text-transform:uppercase; margin:0 0 10px 0; letter-spacing:0.5px;">Filtered Candidate Pool (${allExtractedFrames.length} Frames Found)</h3>
+                <h3 style="font-size:11px; font-weight:900; color:var(--text-muted); text-transform:uppercase; margin:0 0 10px 0; letter-spacing:0.5px;">Filtered Candidate Pool (${allExtractedFrames.length} Elite Choices)</h3>
             `;
 
             let itemsHtml = allExtractedFrames.map((f, i) => {
@@ -442,6 +442,7 @@ HTML_TEMPLATE = """
             renderAll();
         }
 
+        // Dropdown selection state tracking
         function updateType(idx, selectedValue) {
             workspaceFrames[idx].contentType = selectedValue;
         }
@@ -550,12 +551,12 @@ def api_ingest():
     
     try:
         cap = cv2.VideoCapture(temp_path)
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30
         
-        all_candidates = []
+        # Temporary buffer that only stores raw matrix definitions to guard RAM allocations
+        retained_pool = []
         last_hist = None
         frame_idx = 0
-        
-        # Slices frame gaps tighter to search deeper inside soft/blurry source videos
         frame_sample_stride = 10 
         
         while cap.isOpened():
@@ -566,26 +567,24 @@ def api_ingest():
             if frame_idx % frame_sample_stride == 0:
                 h, w, _ = frame.shape
                 
-                # System 1: Distinct Cut Tracking Matrix
+                # System 1: Distinct Color Tracking Matrix
                 hist = cv2.calcHist([frame], [0, 1, 2], None, [4, 4, 4], [0, 256, 0, 256, 0, 256])
                 cv2.normalize(hist, hist)
                 
                 is_distinct_scene = True
                 if last_hist is not None:
                     similarity = cv2.compareHist(hist, last_hist, cv2.HISTCMP_CORREL)
-                    # Low sensitivity drop allows closely sequenced frames to get loaded
                     if similarity > 0.88:
                         is_distinct_scene = False
                         
                 if is_distinct_scene or frame_idx == 0:
                     last_hist = hist
                     
-                    # System 2: Technical validation (Adjusted lower cutoff limit down to 15.0)
+                    # System 2: Adjusted blur calculation
                     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                     blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
                     
                     if blur_score >= 15.0: 
-                        
                         # System 3 & 4: Native Cascade Subject Evaluator
                         faces = HAAR_FACE_CASCADE.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=3, minSize=(30, 30))
                         aesthetic_score = 40.0
@@ -601,19 +600,17 @@ def api_ingest():
                         else:
                             aesthetic_score = float(np.clip(blur_score * 1.5, 30.0, 85.0))
 
-                        _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
-                        b64_data = base64.b64encode(buffer).decode('utf-8')
-                        data_url = f"data:image/jpeg;base64,{b64_data}"
-                        
-                        all_candidates.append({
-                            "id": f"frame_{int(time.time())}_{frame_idx}",
-                            "url": data_url,
-                            "originalUrl": data_url,
-                            "currentUrl": data_url,
+                        # Save the raw image data to our pool
+                        retained_pool.append({
                             "vscore": aesthetic_score,
-                            "label": f"Frame Target Asset ({frame_idx})",
-                            "contentType": "Talking Head Vlog"
+                            "frame_mat": frame.copy(),
+                            "timestamp": frame_idx / fps
                         })
+                        
+                        # CRITICAL OOM PROTECTION: Sort and keep only the top 24 elite candidates in memory
+                        if len(retained_pool) > 24:
+                            retained_pool.sort(key=lambda x: x['vscore'], reverse=True)
+                            retained_pool = retained_pool[:24]
                         
             frame_idx += 1
             
@@ -623,16 +620,32 @@ def api_ingest():
         except:
             pass
 
-        if not all_candidates:
-            return jsonify({"status": "error", "msg": "No frames matched the processing threshold filter loops."}), 400
+        if not retained_pool:
+            return jsonify({"status": "error", "msg": "No frames matched the processing threshold filters."}), 400
 
-        # Sort from highest aesthetic/clarity rank to lowest
-        all_candidates.sort(key=lambda x: x['vscore'], reverse=True)
+        # Sort the final pool from highest to lowest score
+        retained_pool.sort(key=lambda x: x['vscore'], reverse=True)
         
-        # Pull up to 6 for the workspace grid layout assembly
-        top_6_raw = all_candidates[:6]
+        # Just-In-Time encoding: convert the remaining top frames to Base64 strings all at once
+        all_candidates = []
+        for index, item in enumerate(retained_pool):
+            _, buffer = cv2.imencode('.jpg', item['frame_mat'], [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+            b64_data = base64.b64encode(buffer).decode('utf-8')
+            data_url = f"data:image/jpeg;base64,{b64_data}"
+            
+            all_candidates.append({
+                "id": f"frame_{int(time.time())}_{index}",
+                "url": data_url,
+                "originalUrl": data_url,
+                "currentUrl": data_url,
+                "vscore": item['vscore'],
+                "label": f"Elite Selection ({item['timestamp']:.1f}s)",
+                "contentType": "Talking Head Vlog"
+            })
+        
+        # Pull the top 6 for the workspace auto-grid layout selection
         top_6_picks = []
-        for item in top_6_raw:
+        for item in all_candidates[:6]:
             top_6_picks.append({
                 **item,
                 "id": f"ws_auto_{random.randint(100,999)}",
